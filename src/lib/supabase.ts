@@ -258,3 +258,31 @@ export async function markWhatsAppInvitationSent(guestId: string) {
     return { data: data as string | null, error, demo: false }
   })
 }
+
+export async function getSeatAssignments(): Promise<{ data: Record<string, number> | null; error: { message: string; code?: string } | null; demo: boolean }> {
+  if (!supabase) return { data: null, error: null, demo: true }
+  const { data: activeEvent, error: eventError } = await supabase.from('events').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
+  if (eventError || !activeEvent) return { data: null, error: eventError || new Error('No active event'), demo: false }
+  const assignments: Record<string, number> = {}
+  const pageSize = 1000
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase.from('seat_assignments').select('guest_id, table_number').eq('event_id', activeEvent.id).order('guest_id').range(offset, offset + pageSize - 1)
+    if (error) return { data: null, error, demo: false }
+    for (const row of data || []) assignments[String(row.guest_id)] = Number(row.table_number)
+    if (!data || data.length < pageSize) break
+  }
+  return { data: assignments, error: null, demo: false }
+}
+
+export async function saveSeatAssignments(changes: { guestId: string; tableNumber: number | null }[]) {
+  return organizerAction(async () => {
+    if (!supabase) return { data: null, error: null, demo: true }
+    const { data: activeEvent, error: eventError } = await supabase.from('events').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
+    if (eventError || !activeEvent) return { data: null, error: eventError || new Error('No active event'), demo: false }
+    const { data, error } = await supabase.rpc('assign_guest_tables', {
+      target_event_id: activeEvent.id,
+      assignments: changes.map(change => ({ guest_id: change.guestId, table_number: change.tableNumber })),
+    })
+    return { data: data as number | null, error, demo: false }
+  })
+}
