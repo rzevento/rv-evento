@@ -1,0 +1,214 @@
+/* =========================================================
+   Marca · Reformas fiscales 2027 · Ruvalcaba Villalobos
+   Basado en Branding_Reformas_Fiscales_2027/branding.css.
+   Se carga después de styles.css y lo sobrescribe.
+   ========================================================= */
+
+:root {
+  --rv-oro: #9C7B30;          /* acentos, líneas, "40", etiquetas grandes */
+  --rv-oro-texto: #7A5F22;    /* dorado para texto pequeño (contraste AA sobre crema) */
+  --rv-oro-claro: #E2C374;
+  --rv-oro-brillo: #FFF4D2;
+  --rv-crema: #FBF8F1;
+  --rv-blanco: #FFFFFF;
+  --rv-negro: #1A1A1A;
+  --rv-gris-texto: #333333;
+  --rv-gris: #555555;
+  --rv-rojo: #C8202A;
+  --rv-borde: #E6DDC9;
+  --rv-font-titulo: 'Source Serif 4', Georgia, serif;
+  --rv-font-etiqueta: 'Montserrat', Arial, sans-serif;
+  --rv-font-texto: 'Inter', Arial, sans-serif;
+  --rv-radio: 4px;
+
+  /* Variables heredadas del sitio original (nombres invertidos: --cream es el color de texto). */
+  --bg: var(--rv-crema);
+  --panel: var(--rv-blanco);
+  --panel-2: #F3ECDD;
+  --line: var(--rv-borde);
+  --muted: var(--rv-gris);
+  --cream: var(--rv-negro);
+  --orange: var(--rv-oro);
+  --orange-dark: var(--rv-oro-texto);
+  font-family: var(--rv-font-texto);
+}
+
+body, .public-shell, .auth-page, .auth-loading { background: var(--rv-crema); color: var(--rv-negro); font-family: var(--rv-font-texto); }
+
+/* ---------- Títulos: serif con tracking moderado ---------- */
+h1, h2, h3 { font-family: var(--rv-font-titulo); }
+.admin-shell h1, .admin-shell h2, .admin-shell h3, .auth-card h1, .modal-card h2, .success-card h1,
+.register-card h2, .information-page h1, .information-page h2, .members-settings h3, .arrivals-heading h3 { letter-spacing: -0.015em; }
+
+/* ---------- Etiquetas ---------- */
+.eyebrow { font-family: var(--rv-font-etiqueta); font-weight: 700; letter-spacing: 2px; color: var(--rv-oro-texto); }
+.eyebrow.orange { color: var(--rv-oro-texto); }
+
+/* ---------- Botones: negro, un solo principal por pantalla ---------- */
+.button { border-radius: var(--rv-radio); font-family: var(--rv-font-texto); font-weight: 500; }
+.button-orange, .button-dark { background: var(--rv-negro); color: var(--rv-blanco); }
+.button-orange:hover, .button-dark:hover { background: #000; color: var(--rv-blanco); }
+.button:focus-visible, .outline-button:focus-visible { outline: 3px solid var(--rv-oro); outline-offset: 3px; }
+.button:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+.outline-button { border-radius: var(--rv-radio); }
+input:focus { border-color: var(--rv-oro); }
+
+/* ---------- Encabezado público ---------- */
+.rv-franja-superior { height: 8px; background: var(--rv-oro); }
+.public-nav { height: auto; padding-top: 22px; padding-bottom: 18px; align-items: center; }
+.public-nav .brand { color: var(--rv-negro); }
+.public-nav .brand-logo { width: auto; height: 92px; }
+.public-menu { gap: 8px; }
+.public-menu > a, .quiet-link { color: var(--rv-gris); font-size: 14px; }
+.public-menu > a:hover, .public-menu > a.active, .quiet-link:hover,
+.public-shell:has(.information-page) .public-menu > a:hover,
+.public-shell:has(.information-page) .public-menu > a.active { color: var(--rv-negro); background: #F1E9D7; }
+
+/* ---------- Registro ---------- */
+.register-page { grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr); gap: clamp(40px, 6vw, 96px); align-items: start; padding-top: 3vh; overflow: visible; }
+.register-intro { max-width: 760px; }
+.rv-intro-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
+.rv-intro-top .eyebrow { font-size: clamp(14px, 1.4vw, 19px); color: var(--rv-oro); margin: 10px 0 0; line-height: 1.4; }
+.rv-title, .register-intro h1.rv-title, .information-page h1.rv-title { font: 900 clamp(64px, 9vw, 150px)/0.84 var(--rv-font-titulo); font-variation-settings: 'opsz' 60; letter-spacing: -0.02em; color: var(--rv-negro); margin: 0; max-width: 5.3em; }
+.rv-year { display: block; width: 100%; max-width: 760px; height: auto; margin-top: clamp(14px, 2vw, 26px); }
+.rv-divisor { height: 2px; background: var(--rv-oro); border: 0; margin: clamp(26px, 3vw, 38px) 0 0; }
+.rv-columnas { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 24px; }
+.rv-columnas > * { margin: 0; }
+.rv-columnas > * + * { border-left: 1px solid var(--rv-oro); padding-left: clamp(16px, 2.2vw, 32px); }
+.rv-columnas > :first-child { padding-right: clamp(16px, 2.2vw, 32px); }
+.rv-columnas > :nth-child(2) { padding-right: clamp(16px, 2.2vw, 32px); }
+.rv-dato { display: block; font: 700 clamp(21px, 2.2vw, 32px)/1.08 var(--rv-font-titulo); font-variation-settings: 'opsz' 60; color: var(--rv-negro); }
+.rv-columnas > :nth-child(2) .rv-dato { white-space: nowrap; }
+.rv-dato-secundario { display: block; margin-top: 8px; font: 300 clamp(15px, 1.4vw, 19px)/1.35 var(--rv-font-texto); color: var(--rv-gris-texto); }
+.rv-aviso { margin: 32px 0 0; font: 500 13px/1.5 var(--rv-font-etiqueta); letter-spacing: 3px; text-transform: uppercase; color: var(--rv-rojo); }
+
+.register-card { background: var(--rv-blanco); color: var(--rv-negro); max-width: 460px; padding: 40px 40px 32px; border: 1px solid var(--rv-borde); border-top: 4px solid var(--rv-oro); border-radius: var(--rv-radio); box-shadow: 0 18px 40px rgba(26, 26, 26, .06); position: sticky; top: 24px; }
+.register-card .eyebrow { color: var(--rv-oro-texto); font-size: 12px; }
+.register-card h2 { font: 900 34px/1.05 var(--rv-font-titulo); letter-spacing: -0.015em; }
+.register-card .card-top > p:last-child { color: var(--rv-gris); }
+.register-card input, .auth-card input, .scanner-card input { color: var(--rv-negro); border-color: #CFC5AE; }
+label { color: var(--rv-gris-texto); font-family: var(--rv-font-texto); font-weight: 600; }
+input::placeholder { color: #8C857A; }
+.register-card .button-orange { width: 100%; min-height: 54px; font-size: 16px; margin-top: 6px; }
+.invitation-notices { background: #F6F0E2; border-left: 2px solid var(--rv-oro); }
+.invitation-notices p { color: var(--rv-gris-texto); font-size: 12px; }
+.invitation-notices svg, .pass-note svg { color: var(--rv-oro-texto); }
+.privacy-note { color: var(--rv-gris); }
+
+/* ---------- Confirmación ---------- */
+.success-page { align-items: flex-start; }
+.success-card { background: var(--rv-blanco); color: var(--rv-negro); border: 1px solid var(--rv-borde); border-top: 4px solid var(--rv-oro); border-radius: var(--rv-radio); }
+.success-card h1 { font: 900 44px/1.02 var(--rv-font-titulo); }
+.success-card > p:not(.eyebrow) { color: var(--rv-gris-texto); }
+.success-icon { color: var(--rv-oro); border-color: var(--rv-oro); }
+.success-details { color: var(--rv-oro); max-width: 300px; }
+.success-details span { color: var(--rv-negro); }
+.success-details small + small { margin-top: 2px; }
+.success-actions .outline-button { color: var(--rv-negro); }
+.cancel-link { color: var(--rv-rojo); }
+
+/* ---------- 40 aniversario con brillo ---------- */
+.rv-aniversario { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; flex: none; }
+.rv-aniversario-numero {
+  font: 900 clamp(64px, 7vw, 100px)/0.9 var(--rv-font-titulo); font-variation-settings: 'opsz' 60;
+  background: linear-gradient(100deg, var(--rv-oro) 0%, var(--rv-oro) 40%, var(--rv-oro-claro) 46%, var(--rv-oro-brillo) 50%, var(--rv-oro-claro) 54%, var(--rv-oro) 60%, var(--rv-oro) 100%);
+  background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: rvBrillo 3.5s ease-in-out infinite;
+}
+.rv-aniversario-texto { font: 600 12px/1 var(--rv-font-etiqueta); letter-spacing: 1.78px; padding-left: 1.78px; color: var(--rv-oro-texto); white-space: nowrap; }
+@keyframes rvBrillo { 0% { background-position: 100% 0; } 60%, 100% { background-position: 0% 0; } }
+
+/* ---------- Pie: "Miembro de TaxPro" ---------- */
+.rv-footer { display: flex; justify-content: center; padding: 28px 24px 44px; }
+.rv-taxpro { display: flex; align-items: center; gap: 14px; }
+.rv-miembro { font: 600 13px/1 var(--rv-font-etiqueta); letter-spacing: 3px; text-transform: uppercase; color: var(--rv-gris); }
+.tp-logo { position: relative; width: 163px; height: 80px; transform: scale(.75); transform-origin: left center; margin-right: -40px; }
+.tp-icono { position: absolute; left: 0; top: 0; overflow: visible; transform-origin: 24px 40px; animation: tpIcono 7s cubic-bezier(.45,0,.2,1) infinite; }
+.tp-texto { position: absolute; left: 64px; top: 9px; width: 99px; height: 62px; animation: tpTexto 7s ease-in-out infinite; }
+.tp-relleno { animation: tpRelleno 7s linear infinite; }
+.tp-trazo { animation: tpTrazo 7s linear infinite; }
+.tp-trazo path { stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+.tp-t1 { animation: tpT1 7s ease-in-out infinite; }
+.tp-t2 { animation: tpT2 7s ease-in-out infinite; }
+.tp-t3 { animation: tpT3 7s ease-in-out infinite; }
+.tp-t4 { animation: tpT4 7s ease-in-out infinite; }
+@keyframes tpT1 { 0% { stroke-dashoffset: 1; } 8%, 100% { stroke-dashoffset: 0; } }
+@keyframes tpT2 { 0%, 8% { stroke-dashoffset: 1; } 11%, 100% { stroke-dashoffset: 0; } }
+@keyframes tpT3 { 0%, 11% { stroke-dashoffset: 1; } 19%, 100% { stroke-dashoffset: 0; } }
+@keyframes tpT4 { 0%, 19% { stroke-dashoffset: 1; } 22%, 100% { stroke-dashoffset: 0; } }
+@keyframes tpRelleno { 0%, 21% { opacity: 0; } 23%, 100% { opacity: 1; } }
+@keyframes tpTrazo { 0%, 23% { opacity: 1; } 24%, 100% { opacity: 0; } }
+@keyframes tpIcono {
+  0%, 24% { opacity: 1; transform: translateX(16px) rotate(90deg); }
+  27% { transform: translateX(14px) rotate(55deg); }
+  32% { transform: translateX(0) rotate(-6deg); }
+  35%, 78% { transform: translateX(0) rotate(0deg); }
+  87% { transform: translateX(16px) rotate(98deg); }
+  90%, 93% { opacity: 1; transform: translateX(16px) rotate(90deg); }
+  99%, 100% { opacity: 0; transform: translateX(16px) rotate(90deg); }
+}
+@keyframes tpTexto { 0%, 32% { clip-path: inset(0 100% 0 0); } 38%, 76% { clip-path: inset(0 0 0 0); } 82%, 100% { clip-path: inset(0 100% 0 0); } }
+
+/* El pie y la franja son solo del sitio público. */
+.public-shell:has(.admin-shell) .rv-footer, .public-shell:has(.auth-page) .rv-footer { display: none; }
+
+/* ---------- Sobre el evento ---------- */
+.public-shell:has(.information-page), .information-page { background: var(--rv-crema); color: var(--rv-negro); }
+.information-page .information-hero { border-color: var(--rv-borde); padding-bottom: 48px; }
+.information-page .information-hero .rv-title { font-size: clamp(56px, 8vw, 120px); max-width: none; }
+.information-page .information-hero .rv-title span { color: var(--rv-oro); display: block; }
+.information-page .information-lead { max-width: 640px; font-size: 18px; line-height: 1.6; color: var(--rv-gris-texto); margin: 26px 0 30px; }
+.information-page .information-card p:not(.eyebrow) { color: var(--rv-gris-texto); }
+.information-page .information-card-dark h2, .information-page .speaker-card h2 { font: 900 clamp(34px, 4vw, 52px)/1.02 var(--rv-font-titulo); color: var(--rv-negro); }
+.information-page .rv-columnas p.rv-dato, .information-page .rv-columnas .rv-dato { font: 700 clamp(21px, 2.2vw, 30px)/1.08 var(--rv-font-titulo); color: var(--rv-negro); max-width: none; }
+.information-page .rv-columnas .rv-dato-secundario { font: 300 clamp(15px, 1.4vw, 19px)/1.35 var(--rv-font-texto); color: var(--rv-gris-texto); }
+.information-page .information-card-dark > p:not(.eyebrow) { font-size: 17px; line-height: 1.65; }
+.information-page .speaker-bio p { font-size: 16px; line-height: 1.65; }
+.information-page .information-card-dark { max-width: none; padding-top: 48px; }
+.information-page .information-card-dark > * { margin-left: 0 !important; margin-right: 0 !important; }
+.information-columns { max-width: 860px; margin-top: 36px; padding-top: 26px; border-top: 2px solid var(--rv-oro); }
+.information-page .speaker-card { background: var(--rv-blanco); border: 1px solid var(--rv-borde); border-left: 4px solid var(--rv-oro); border-radius: var(--rv-radio); }
+.information-page .speaker-card .brand-logo { width: auto; height: 120px; margin: 4px 0 22px; }
+.information-page .information-footer { border-color: var(--rv-borde); }
+.information-page .information-footer .eyebrow { color: var(--rv-rojo); letter-spacing: 3px; font-weight: 500; }
+
+/* ---------- Acceso organizador ---------- */
+.auth-card { background: var(--rv-blanco); border: 1px solid var(--rv-borde); border-top: 4px solid var(--rv-oro); border-radius: var(--rv-radio); box-shadow: 0 18px 40px rgba(26, 26, 26, .06); }
+.auth-card > .brand-logo { width: auto; height: 104px; margin-bottom: 30px; }
+.auth-card h1 { font: 900 40px/1.02 var(--rv-font-titulo); }
+.auth-card h1 span { color: var(--rv-oro); }
+
+/* ---------- Panel ---------- */
+.sidebar, .next-event { background: var(--rv-negro); }
+.sidebar-brand { font-family: var(--rv-font-etiqueta); font-size: 10px; letter-spacing: .14em; gap: 10px; }
+.sidebar-brand .brand-symbol { width: 38px; height: auto; transform: none; }
+.sidebar nav a.active { background: #2B2924 !important; }
+.event-switcher { background: #2B2924; border-color: #45403A; }
+.admin-shell { background: #F3EEE3; }
+
+/* ---------- Celular ---------- */
+@media (max-width: 950px) {
+  .register-page { grid-template-columns: 1fr; }
+  .register-card { position: static; max-width: none; }
+}
+@media (max-width: 700px) {
+  .public-nav { padding-top: 14px; padding-bottom: 12px; }
+  .public-nav .brand-logo { height: 66px; }
+  .public-menu > a:first-child { display: none; }
+  .rv-intro-top .eyebrow { font-size: 13px; letter-spacing: 1.5px; }
+  .rv-columnas { grid-template-columns: 1fr; gap: 18px; }
+  .rv-columnas > * { padding: 0 !important; }
+  .rv-columnas > * + * { border-left: 0; border-top: 1px solid var(--rv-oro); padding-top: 18px !important; }
+  .rv-aviso { font-size: 11px; letter-spacing: 2px; }
+  .register-card { padding: 30px 22px 26px; }
+  .success-card { padding: 40px 24px; }
+  .success-card h1 { font-size: 34px; }
+  .rv-taxpro { gap: 8px; }
+  .rv-miembro { font-size: 11px; letter-spacing: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rv-aniversario-numero, .tp-icono, .tp-texto, .tp-relleno, .tp-trazo, .tp-trazo path { animation: none; }
+  .tp-trazo { opacity: 0; }
+  .button { transition: none; }
+}

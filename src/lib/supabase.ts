@@ -20,7 +20,7 @@ export const supabase = url && publishableKey
   : null
 
 export async function getEventMembers() {
-  if (!supabase) return { data: [{ userId: 'demo-user', email: 'maria@rzevento.com', displayName: 'María Ríos', role: 'Administradora', roleCode: 'admin' }], error: null, demo: true }
+  if (!supabase) return { data: [{ userId: 'demo-user', email: 'maria@ejemplo.com', displayName: 'María Ríos', role: 'Administradora', roleCode: 'admin' }], error: null, demo: true }
   const { data: activeEvent, error: eventError } = await supabase.from('events').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
   if (eventError || !activeEvent) return { data: [], error: eventError || new Error('No active event'), demo: false }
   const { data, error } = await supabase.from('event_members').select('user_id, email, display_name, role').eq('event_id', activeEvent.id).order('created_at')

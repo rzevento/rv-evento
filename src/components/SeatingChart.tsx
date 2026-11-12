@@ -80,7 +80,7 @@ export default function SeatingChart({ guests, guestsLoading, guestsError, canEd
     const url = URL.createObjectURL(new Blob([seatingCsv(plan.tables, plan.unassigned)], { type: 'text/csv;charset=utf-8' }))
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = 'croquis-mesas-familias-empresarias.csv'
+    anchor.download = 'croquis-mesas-reformas-fiscales-2027.csv'
     anchor.click()
     URL.revokeObjectURL(url)
   }

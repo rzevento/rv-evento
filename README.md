@@ -1,6 +1,10 @@
-# Registro de evento RZ
+# Registro · Reformas fiscales 2027
 
-SPA para invitaciones, confirmaciones y registro de entrada del evento **Familias empresarias en la era de las turbulencias: retos y oportunidades**.
+SPA para invitaciones, confirmaciones y registro de entrada de la conferencia **Reformas fiscales 2027** de Ruvalcaba Villalobos, Consultores Fiscales (40 aniversario). Jueves 3 de diciembre, 16:00 – 19:30 h, Hotel RIU, Guadalajara.
+
+## Marca
+
+Los colores, tipografías y componentes vienen del paquete *Branding_Reformas_Fiscales_2027* y viven en `src/brand.css`, que se carga después de `src/styles.css`. Los logos e imágenes están en `public/brand/`. Los datos del evento que muestra el sitio están en el objeto `event` al inicio de `src/main.tsx`.
 
 ## Stack
 

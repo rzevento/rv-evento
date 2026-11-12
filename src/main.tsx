@@ -17,56 +17,81 @@ import SeatingChart from './components/SeatingChart'
 import { arrivedGuests } from './lib/dashboard'
 import type { Guest, GuestStatus } from './lib/dashboard'
 import './styles.css'
+import './brand.css'
 
 const event = {
-  eyebrow: 'Conferencia privada',
-  title: 'Familias empresarias en la era de las turbulencias:',
-  accent: 'retos y oportunidades',
-  speaker: 'Manuel Bermejo Sánchez',
-  moderator: 'José Roberto Romo Zepeda',
-  date: 'Martes 17 de noviembre de 2026',
-  time: '9:00 h · Registro desde las 8:30 h',
-  venue: 'Hyatt Regency Andares',
+  eyebrow: 'Conferencia para clientes y amigos',
+  title: 'Reformas fiscales',
+  accent: '2027',
+  host: 'Ruvalcaba Villalobos',
+  hostDetail: 'Consultores Fiscales',
+  date: 'Jueves 3 de diciembre',
+  dateShort: 'jueves 3 de diciembre',
+  time: '16:00 – 19:30 h',
+  registration: 'Registro 15:30 h',
+  venue: 'Hotel RIU',
   city: 'Guadalajara, Jalisco',
-  deadline: 'Antes del 16 de noviembre de 2026',
+  notice: 'Invitación personal e intransferible',
+}
+
+async function imageDataUrl(path: string) {
+  const response = await fetch(path)
+  if (!response.ok) throw new Error(`No se pudo cargar ${path}`)
+  const blob = await response.blob()
+  return new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(blob) })
 }
 
 async function downloadGuestPass(name: string, accessToken: string) {
-  const qrDataUrl = await QRCode.toDataURL(accessToken, { errorCorrectionLevel: 'H', width: 900, margin: 4, color: { dark: '#241f1a', light: '#fffdf9' } })
+  const qrDataUrl = await QRCode.toDataURL(accessToken, { errorCorrectionLevel: 'H', width: 900, margin: 4, color: { dark: '#1a1a1a', light: '#ffffff' } })
+  const logo = await imageDataUrl('/brand/rv-logo.png').catch(() => null)
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' })
   const pageWidth = pdf.internal.pageSize.getWidth()
-  pdf.setFillColor(246, 242, 236)
+  pdf.setFillColor(251, 248, 241)
   pdf.rect(0, 0, pageWidth, 297, 'F')
-  pdf.setFillColor(255, 253, 249)
-  pdf.rect(18, 18, pageWidth - 36, 261, 'F')
-  pdf.setFillColor(255, 118, 0)
-  pdf.rect(18, 18, pageWidth - 36, 3, 'F')
-  pdf.setTextColor(199, 90, 0)
+  pdf.setFillColor(156, 123, 48)
+  pdf.rect(0, 0, pageWidth, 3, 'F')
+  if (logo) pdf.addImage(logo, 'PNG', 24, 20, 25, 35.3)
+  pdf.setTextColor(156, 123, 48)
+  pdf.setFont('times', 'bold')
+  pdf.setFontSize(30)
+  pdf.text('40', pageWidth - 24, 34, { align: 'right' })
   pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(16)
-  pdf.text('RZ EVENTOS', 30, 42)
-  pdf.setTextColor(36, 31, 26)
-  pdf.setFontSize(27)
-  pdf.text('Entrada personal', 30, 61)
-  pdf.setTextColor(199, 90, 0)
-  pdf.text('Familias empresarias', 30, 75)
-  pdf.setTextColor(36, 31, 26)
+  pdf.setFontSize(7.5)
+  pdf.text('ANIVERSARIO', pageWidth - 24, 40, { align: 'right', charSpace: 0.6 })
+  pdf.setTextColor(26, 26, 26)
+  pdf.setFont('times', 'bold')
+  pdf.setFontSize(36)
+  pdf.text(`${event.title} ${event.accent}`, 24, 82)
+  pdf.setDrawColor(156, 123, 48)
+  pdf.setLineWidth(0.6)
+  pdf.line(24, 90, pageWidth - 24, 90)
+  pdf.setTextColor(156, 123, 48)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(9.5)
+  pdf.text('ENTRADA PERSONAL', 24, 103, { charSpace: 0.6 })
+  pdf.setTextColor(26, 26, 26)
+  pdf.setFont('times', 'bold')
   pdf.setFontSize(23)
-  pdf.text(name || 'Invitado', 30, 98)
+  pdf.text(pdf.splitTextToSize(name || 'Invitado', pageWidth - 48), 24, 115)
   pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(13)
-  pdf.text(event.date, 30, 114)
-  pdf.text(`${event.time} · ${event.venue}`, 30, 123)
-  pdf.text(event.city, 30, 132)
-  pdf.addImage(qrDataUrl, 'PNG', 30, 153, 58, 58)
+  pdf.setFontSize(12)
+  pdf.setTextColor(51, 51, 51)
+  pdf.text(`${event.date} · ${event.time} · ${event.registration}`, 24, 131)
+  pdf.text(`${event.venue}, ${event.city}`, 24, 139)
+  pdf.addImage(qrDataUrl, 'PNG', 24, 154, 62, 62)
+  pdf.setTextColor(26, 26, 26)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(12)
-  pdf.text(pdf.splitTextToSize('Presenta este QR en el acceso', 82), 100, 174)
+  pdf.text(pdf.splitTextToSize('Presente este código QR en el acceso', 80), 98, 172)
   pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(11)
-  pdf.setTextColor(129, 120, 110)
-  pdf.text(pdf.splitTextToSize('Esta entrada es personal e intransferible. También llegará por correo. No es necesario imprimirla; puedes mostrarla desde tu celular.', 82), 100, 187, { lineHeightFactor: 1.55 })
-  pdf.save('entrada-personal-rz-eventos.pdf')
+  pdf.setFontSize(10.5)
+  pdf.setTextColor(85, 85, 85)
+  pdf.text(pdf.splitTextToSize('No es necesario imprimirla; puede mostrarla desde su celular. También la recibirá por correo.', 80), 98, 186, { lineHeightFactor: 1.55 })
+  pdf.setTextColor(200, 32, 42)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(7.5)
+  pdf.text(event.notice.toUpperCase(), 98, 210, { charSpace: 0.5 })
+  pdf.save('entrada-reformas-fiscales-2027.pdf')
 }
 
 const demoGuests: Guest[] = [
@@ -120,15 +145,41 @@ function downloadGuestCsv(guests: Guest[]) {
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = 'invitados-familias-empresarias.csv'
+  anchor.download = 'invitados-reformas-fiscales-2027.csv'
   anchor.click()
   URL.revokeObjectURL(url)
 }
 
-function Logo() { return <img className="brand-logo" src="/logo-rz.png" alt="RZ" /> }
+function Logo({ symbol = false }: { symbol?: boolean }) {
+  return symbol
+    ? <img className="brand-logo brand-symbol" src="/brand/rv-simbolo.png" alt="Ruvalcaba Villalobos" width={207} height={120} />
+    : <img className="brand-logo" src="/brand/rv-logo.png" alt="Ruvalcaba Villalobos, Consultores Fiscales" width={207} height={292} />
+}
+
+function Aniversario() {
+  return <div className="rv-aniversario" role="img" aria-label="40 aniversario"><span className="rv-aniversario-numero" aria-hidden="true">40</span><span className="rv-aniversario-texto" aria-hidden="true">ANIVERSARIO</span></div>
+}
+
+function MiembroTaxPro() {
+  return <div className="rv-taxpro"><span className="rv-miembro">Miembro de</span><div className="tp-logo" role="img" aria-label="TaxPro">
+    <svg className="tp-icono" aria-hidden="true" width="48" height="80" viewBox="122 107 308 511">
+      <g className="tp-relleno" fill="#E87F45">
+        <path d="M200,394 V183 A76,76 0 0 1 352,183 V310 H307 V190 A31,31 0 0 0 245,190 V394 Z" />
+        <rect x="244" y="262" width="186" height="48" />
+        <g transform="rotate(180 276 362)"><path d="M200,394 V183 A76,76 0 0 1 352,183 V310 H307 V190 A31,31 0 0 0 245,190 V394 Z" /><rect x="244" y="262" width="186" height="48" /></g>
+      </g>
+      <g className="tp-trazo" fill="none" stroke="#E87F45">
+        <path className="tp-t1" pathLength={1} strokeWidth="45" d="M222.5,394 V186.5 A53.5,53.5 0 0 1 329.5,186.5 V310" />
+        <path className="tp-t2" pathLength={1} strokeWidth="48" d="M244,286 H430" />
+        <g transform="rotate(180 276 362)"><path className="tp-t3" pathLength={1} strokeWidth="45" d="M222.5,394 V186.5 A53.5,53.5 0 0 1 329.5,186.5 V310" /><path className="tp-t4" pathLength={1} strokeWidth="48" d="M244,286 H430" /></g>
+      </g>
+    </svg>
+    <img className="tp-texto" src="/brand/taxpro-texto.png" alt="" />
+  </div></div>
+}
 
 function PublicShell() {
-  return <div className="public-shell"><header className="public-nav"><Link to="/" className="brand"><Logo /><span>RZ EVENTOS</span></Link><nav className="public-menu" aria-label="Navegación principal"><Link to="/informacion" activeProps={{ className: 'active' }}>Sobre el evento</Link><Link to="/admin" className="quiet-link">Acceso organizador <ArrowRight size={15} /></Link></nav></header><Outlet /></div>
+  return <div className="public-shell"><div className="rv-franja-superior" aria-hidden="true" /><header className="public-nav"><Link to="/" className="brand" aria-label="Ruvalcaba Villalobos · Inicio"><Logo /></Link><nav className="public-menu" aria-label="Navegación principal"><Link to="/" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}>Registro</Link><Link to="/informacion" activeProps={{ className: 'active' }}>Sobre el evento</Link><Link to="/admin" className="quiet-link">Acceso organizador <ArrowRight size={15} /></Link></nav></header><Outlet /><footer className="rv-footer"><MiembroTaxPro /></footer></div>
 }
 
 function RegistrationPage({ token = 'demo' }: { token?: string }) {
@@ -152,7 +203,7 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
       if (!active) return
       if (result.error) throw result.error
       if (!result.data) {
-        setError('Este enlace de invitación no es válido. Revisa el enlace que recibiste.')
+        setError('Este enlace de invitación no es válido. Revise el enlace que recibió.')
         setPrefillStatus('error')
         return
       }
@@ -164,13 +215,13 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
       }
     }).catch(() => {
       if (!active) return
-      setError('No pudimos cargar tus datos. Intenta de nuevo.')
+      setError('No pudimos cargar sus datos. Intente de nuevo.')
       setPrefillStatus('error')
     })
     return () => { active = false }
   }, [directToken, loadAttempt])
   const update = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [key]: e.target.value })
-  if (sent) return <main className="register-page success-page"><div className="success-card"><div className="success-icon">{cancelled ? <span>×</span> : <Check size={25} />}</div><p className="eyebrow">{cancelled ? 'Asistencia cancelada' : alreadyRegistered ? 'Asistencia confirmada' : 'Registro recibido'}</p><h1>{cancelled ? 'Tu cancelación quedó registrada.' : alreadyRegistered ? 'Tu asistencia ya está confirmada.' : `Gracias, ${form.name.split(' ')[0] || 'por confirmar'}.`}</h1><p>{cancelled ? 'Si cambias de opinión, puedes volver a confirmar desde este mismo enlace.' : alreadyRegistered ? 'Tu registro ya fue recibido y tu lugar está reservado. No necesitas registrarte otra vez. Puedes descargar tu invitación o cancelar tu asistencia desde aquí.' : 'Tu lugar para la conferencia está apartado. Te esperamos el martes 17 de noviembre en Hyatt Regency Andares.'}</p>{!cancelled && <><div className="success-details"><CalendarDays size={18} /><span>{event.date}<br /><small>{event.time}</small></span></div><p className="pass-note"><ShieldCheck size={15} /> {form.email ? 'También recibirás tu entrada por correo.' : 'Si registraste un correo, también recibirás tu entrada por ahí.'} No es necesario imprimirla; puedes mostrarla desde tu celular.</p></>}<div className="success-actions">{!cancelled && <><button className="button button-orange" onClick={() => void downloadPass()}><Download size={16} /> Descargar invitación</button><Link className="outline-button" to="/informacion">Ver más sobre el evento <ArrowRight size={15} /></Link></>}{!cancelled && <button className="cancel-link" disabled={cancelling} onClick={() => void cancelAttendance()}>{cancelling ? 'Cancelando…' : 'Cancelar mi asistencia'}</button>}</div>{error && <p className="form-error" role="alert">{error}</p>}{cancelled && <button className="outline-button" onClick={() => { setSent(false); setCancelled(false); setAlreadyRegistered(false); setError('') }}>Volver a confirmar asistencia</button>}</div></main>
+  if (sent) return <main className="register-page success-page"><div className="success-card"><div className="success-icon">{cancelled ? <span>×</span> : <Check size={25} />}</div><p className="eyebrow">{cancelled ? 'Asistencia cancelada' : alreadyRegistered ? 'Asistencia confirmada' : 'Registro recibido'}</p><h1>{cancelled ? 'Su cancelación quedó registrada.' : alreadyRegistered ? 'Su asistencia ya está confirmada.' : `Gracias, ${form.name.split(' ')[0] || 'por confirmar'}.`}</h1><p>{cancelled ? 'Si cambia de opinión, puede volver a confirmar desde este mismo enlace.' : alreadyRegistered ? 'Su registro ya fue recibido y su lugar está reservado. No necesita registrarse otra vez. Puede descargar su entrada o cancelar su asistencia desde aquí.' : `Su lugar está reservado. Le esperamos el ${event.dateShort} en ${event.venue}, ${event.city}.`}</p>{!cancelled && <><div className="success-details"><CalendarDays size={18} /><span>{event.date}<small>{event.time} · {event.registration}</small><small>{event.venue}, {event.city}</small></span></div><p className="pass-note"><ShieldCheck size={15} /> {form.email ? 'También recibirá su entrada por correo.' : 'Si registró un correo, también recibirá su entrada por ahí.'} No es necesario imprimirla; puede mostrarla desde su celular.</p></>}<div className="success-actions">{!cancelled && <><button className="button button-orange" onClick={() => void downloadPass()}><Download size={16} /> Descargar entrada</button><Link className="outline-button" to="/informacion">Más sobre el evento <ArrowRight size={15} /></Link></>}{!cancelled && <button className="cancel-link" disabled={cancelling} onClick={() => void cancelAttendance()}>{cancelling ? 'Cancelando…' : 'Cancelar mi asistencia'}</button>}</div>{error && <p className="form-error" role="alert">{error}</p>}{cancelled && <button className="outline-button" onClick={() => { setSent(false); setCancelled(false); setAlreadyRegistered(false); setError('') }}>Volver a confirmar asistencia</button>}</div></main>
   async function cancelAttendance() {
     setCancelling(true)
     setError('')
@@ -179,7 +230,7 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
       if (result.error) throw result.error
       setCancelled(true)
     } catch {
-      setError('No pudimos cancelar tu asistencia. Intenta de nuevo.')
+      setError('No pudimos cancelar su asistencia. Intente de nuevo.')
     } finally {
       setCancelling(false)
     }
@@ -188,7 +239,7 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
     e.preventDefault()
     if (prefillStatus !== 'ready' || submitting) return
     if (!form.email.trim() && !form.phone.trim()) {
-      setError('Escribe tu correo o tu celular para identificar tu registro.')
+      setError('Escriba su correo o celular para identificar su registro.')
       return
     }
     setSubmitting(true)
@@ -202,7 +253,7 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
         const details = await getInvitationDetails(currentToken)
         if (details.error || !details.data) {
           setSubmitting(false)
-          setError('No pudimos cargar tu invitación. Intenta de nuevo.')
+          setError('No pudimos cargar su invitación. Intente de nuevo.')
           return
         }
         setResolvedToken(currentToken)
@@ -217,7 +268,7 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
     }
     if (!form.name.trim() || !form.company.trim()) {
       setSubmitting(false)
-      setError('Para completar el registro necesitamos tu nombre y empresa.')
+      setError('Para completar el registro necesitamos su nombre y empresa.')
       return
     }
     const result = await submitRsvp({ token: currentToken, ...form })
@@ -226,55 +277,20 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
       const conflict = result.error as { code?: string; message?: string; details?: string }
       const description = `${conflict.message || ''} ${conflict.details || ''}`
       if (conflict.code === '23505' && description.includes('guests_event_phone_key')) {
-        setError('Este celular ya está registrado con otro invitado. Verifica el número o contacta al organizador para recibir ayuda.')
+        setError('Este celular ya está registrado con otro invitado. Verifique el número o contacte al organizador para recibir ayuda.')
       } else if (conflict.code === '23505' && description.includes('guests_event_email_key')) {
-        setError('Este correo ya está registrado con otro invitado. Verifica el correo o contacta al organizador para recibir ayuda.')
+        setError('Este correo ya está registrado con otro invitado. Verifique el correo o contacte al organizador para recibir ayuda.')
       } else {
-        setError('No pudimos completar el registro. Verifica tu enlace e inténtalo de nuevo.')
+        setError('No pudimos completar el registro. Verifique su enlace e inténtelo de nuevo.')
       }
       return
     }
     setSent(true)
   }
   async function downloadPass() {
-    const accessToken = resolvedToken || token
-    const qrDataUrl = await QRCode.toDataURL(accessToken, { errorCorrectionLevel: 'H', width: 900, margin: 4, color: { dark: '#241f1a', light: '#fffdf9' } })
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4' })
-    const pageWidth = pdf.internal.pageSize.getWidth()
-    pdf.setFillColor(246, 242, 236)
-    pdf.rect(0, 0, pageWidth, 297, 'F')
-    pdf.setFillColor(255, 253, 249)
-    pdf.rect(18, 18, pageWidth - 36, 261, 'F')
-    pdf.setFillColor(255, 118, 0)
-    pdf.rect(18, 18, pageWidth - 36, 3, 'F')
-    pdf.setTextColor(199, 90, 0)
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(16)
-    pdf.text('RZ EVENTOS', 30, 42)
-    pdf.setTextColor(36, 31, 26)
-    pdf.setFontSize(27)
-    pdf.text('Entrada personal', 30, 61)
-    pdf.setTextColor(199, 90, 0)
-    pdf.text('Familias empresarias', 30, 75)
-    pdf.setTextColor(36, 31, 26)
-    pdf.setFontSize(23)
-    pdf.text(form.name || 'Invitado', 30, 98)
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(13)
-    pdf.text(event.date, 30, 114)
-    pdf.text(`${event.time} · ${event.venue}`, 30, 123)
-    pdf.text(event.city, 30, 132)
-    pdf.addImage(qrDataUrl, 'PNG', 30, 153, 58, 58)
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(12)
-    pdf.text(pdf.splitTextToSize('Presenta este QR en el acceso', 82), 100, 174)
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(11)
-    pdf.setTextColor(129, 120, 110)
-    pdf.text(pdf.splitTextToSize('Esta entrada es personal e intransferible. También llegará por correo. No es necesario imprimirla; puedes mostrarla desde tu celular.', 82), 100, 187, { lineHeightFactor: 1.55 })
-    pdf.save('entrada-personal-rz-eventos.pdf')
+    await downloadGuestPass(form.name, resolvedToken || token)
   }
-  return <main className="register-page"><section className="register-intro"><div className="circle circle-one"></div><div className="circle circle-two"></div><Logo /><p className="eyebrow">{event.eyebrow}</p><h1>{event.title} <span>{event.accent}</span></h1><div className="line"></div><p className="intro-copy">Una conversación para quienes construyen empresas que trascienden generaciones.</p><div className="event-meta"><div><CalendarDays size={19} /><span>{event.date}<small>{event.time}</small></span></div><div><MapPin size={19} /><span>{event.venue}<small>{event.city}</small></span></div></div></section><section className="register-card"><div className="card-top"><p className="eyebrow">Evento exclusivo por invitación</p><h2>Confirma tu asistencia</h2><div className="invitation-notices"><p><ShieldCheck size={15} /> {directToken ? 'Revisa tus datos y completa lo que falte.' : 'Ingresa el correo o celular con el que fuiste invitado.'}</p><p><LockKeyhole size={15} /> Esta invitación es personal e intransferible.</p></div><p>Completa tus datos para reservar tu lugar.</p></div><form onSubmit={handleSubmit} aria-busy={prefillStatus === 'loading'}>{prefillStatus === 'loading' && <p role="status">Cargando tus datos…</p>}<label>Nombre completo<input disabled={prefillStatus !== 'ready' || submitting} value={form.name} onChange={update('name')} placeholder="Tu nombre" /></label><label>Correo electrónico<input type="email" disabled={prefillStatus !== 'ready' || submitting} value={form.email} onChange={update('email')} placeholder="nombre@empresa.com" /></label><label>Celular<input type="tel" disabled={prefillStatus !== 'ready' || submitting} value={form.phone} onChange={update('phone')} placeholder="México: 10 dígitos · Otros: +código de país" /></label><label>Empresa<input disabled={prefillStatus !== 'ready' || submitting} value={form.company} onChange={update('company')} placeholder="Nombre de la empresa" /></label>{error && <p className="form-error" role="alert">{error}</p>}{prefillStatus === 'error' && <button className="outline-button" type="button" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Volver a cargar</button>}<button className="button button-orange" type="submit" disabled={submitting || prefillStatus !== 'ready'}>{submitting ? 'Guardando…' : 'Confirmar asistencia'} {!submitting && <ArrowRight size={17} />}</button></form><p className="privacy-note"><ShieldCheck size={15} /> Tus datos se utilizarán únicamente para la organización del evento.</p></section></main>
+  return <main className="register-page"><section className="register-intro"><div className="rv-intro-top"><p className="eyebrow">{event.eyebrow}</p><Aniversario /></div><h1 className="rv-title">{event.title}</h1><img className="rv-year" src="/brand/2027-ciudad.png" alt={event.accent} width={946} height={334} /><hr className="rv-divisor" /><div className="rv-columnas"><p className="rv-dato">{event.date}</p><p><span className="rv-dato">{event.time}</span><span className="rv-dato-secundario">{event.registration}</span></p><p><span className="rv-dato">{event.venue}</span><span className="rv-dato-secundario">{event.city}</span></p></div><p className="rv-aviso">{event.notice}</p></section><section className="register-card"><div className="card-top"><p className="eyebrow">Registro</p><h2>Confirme su asistencia</h2><div className="invitation-notices"><p><ShieldCheck size={15} /> {directToken ? 'Revise sus datos y complete lo que falte.' : 'Ingrese el correo o celular con el que fue invitado.'}</p><p><LockKeyhole size={15} /> Esta invitación es personal e intransferible.</p></div><p>Complete sus datos para reservar su lugar.</p></div><form onSubmit={handleSubmit} aria-busy={prefillStatus === 'loading'}>{prefillStatus === 'loading' && <p role="status">Cargando sus datos…</p>}<label>Nombre completo<input autoComplete="name" disabled={prefillStatus !== 'ready' || submitting} value={form.name} onChange={update('name')} placeholder="Su nombre" /></label><label>Correo electrónico<input type="email" autoComplete="email" disabled={prefillStatus !== 'ready' || submitting} value={form.email} onChange={update('email')} placeholder="nombre@empresa.com" /></label><label>Celular<input type="tel" autoComplete="tel" disabled={prefillStatus !== 'ready' || submitting} value={form.phone} onChange={update('phone')} placeholder="México: 10 dígitos · Otros: +código de país" /></label><label>Empresa<input autoComplete="organization" disabled={prefillStatus !== 'ready' || submitting} value={form.company} onChange={update('company')} placeholder="Nombre de la empresa" /></label>{error && <p className="form-error" role="alert">{error}</p>}{prefillStatus === 'error' && <button className="outline-button" type="button" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Volver a cargar</button>}<button className="button button-orange" type="submit" disabled={submitting || prefillStatus !== 'ready'}>{submitting ? 'Guardando…' : 'Confirmar registro'} {!submitting && <ArrowRight size={17} />}</button></form><p className="privacy-note"><ShieldCheck size={15} /> Sus datos se utilizarán únicamente para la organización del evento.</p></section></main>
 }
 
 function TokenRegistrationPage() {
@@ -283,7 +299,14 @@ function TokenRegistrationPage() {
 }
 
 function InformationPage() {
-  return <main className="information-page"><section className="information-hero"><div><p className="eyebrow orange">Sobre el evento</p><h1>Ideas para construir empresas que <span>trascienden.</span></h1><p className="information-lead">Una conversación cercana para familias empresarias que quieren entender mejor los retos y las oportunidades de crecer en tiempos de cambio.</p><Link className="button button-orange" to="/">Confirmar asistencia <ArrowRight size={17} /></Link></div></section><section className="information-grid"><article className="information-card information-card-dark"><p className="eyebrow orange">La conversación</p><h2>Familias empresarias en la era de las turbulencias</h2><p>El encuentro propone un espacio para compartir perspectivas prácticas sobre continuidad, liderazgo y toma de decisiones cuando el entorno cambia.</p><div className="book-note"><span className="eyebrow orange">Libro de referencia</span><strong>Familias empresarias en la sociedad del cambio</strong><small>Agenda estratégica para la gobernanza y el liderazgo transformador</small><p>En su libro, Manuel Bermejo aborda la transición generacional, la gobernanza y el liderazgo que necesitan las familias empresarias para adaptarse a una sociedad marcada por la tecnología, la globalización y la incertidumbre.</p><a href="https://www.lidlibros.com/fichalibro.php?edi=88&libro=10560" target="_blank" rel="noreferrer">Conocer el libro <ArrowRight size={14} /></a></div><div className="information-details"><div><CalendarDays size={18} /><span>{event.date}<small>{event.time}</small></span></div><div><MapPin size={18} /><span>{event.venue}<small>{event.city}</small></span></div></div></article><article className="information-card speaker-card"><p className="eyebrow orange">El expositor</p><div className="speaker-initials" aria-hidden="true">MB</div><h2>{event.speaker}</h2><div className="speaker-bio"><p>Manuel Bermejo Sánchez es especialista en empresa familiar, gobierno corporativo y liderazgo. Es presidente ejecutivo y fundador de The Family Advisory Board, así como director general de los Programas de Empresa Familiar de Executive Education en IE Business School.</p><p>Es doctor en Economía por la Universidad de Granada, ingeniero agrónomo por la Universidad Politécnica de Madrid y MBA por IE Business School. También cuenta con formación en Harvard Business School y Babson College.</p><p>Durante más de tres décadas ha acompañado a familias empresarias y participado como profesor, consejero y conferencista en Europa y Latinoamérica.</p></div><div className="speaker-moderator"><span>Conversación moderada por</span><strong>{event.moderator}</strong></div></article></section><section className="information-footer"><div><p className="eyebrow">Una invitación</p><h2>Reserva tu lugar en esta conversación.</h2></div><Link className="outline-button" to="/">Ir al registro <ArrowRight size={16} /></Link></section></main>
+  return <main className="information-page">
+    <section className="information-hero"><div><div className="rv-intro-top"><p className="eyebrow">{event.eyebrow}</p><Aniversario /></div><h1 className="rv-title">{event.title} <span>{event.accent}</span></h1><p className="information-lead">{event.host}, {event.hostDetail}, le invita a conocer los cambios fiscales que vienen para 2027 en una conferencia con la que también celebramos 40 años acompañando a nuestros clientes.</p><Link className="button button-orange" to="/">Regístrese aquí <ArrowRight size={17} /></Link></div></section>
+    <section className="information-grid">
+      <article className="information-card information-card-dark"><p className="eyebrow">La conferencia</p><h2>{event.title} {event.accent}</h2><p>Una tarde para revisar, con nuestros especialistas, las reformas fiscales que entrarán en vigor en 2027 y lo que significan para usted y su empresa.</p><div className="rv-columnas information-columns"><p className="rv-dato">{event.date}</p><p><span className="rv-dato">{event.time}</span><span className="rv-dato-secundario">{event.registration}</span></p><p><span className="rv-dato">{event.venue}</span><span className="rv-dato-secundario">{event.city}</span></p></div></article>
+      <article className="information-card speaker-card"><p className="eyebrow">El anfitrión</p><Logo /><h2>{event.host}</h2><div className="speaker-bio"><p>{event.hostDetail}. Este año celebramos nuestro 40 aniversario y queremos hacerlo con nuestros clientes y amigos.</p><p>Somos miembros de TaxPro.</p></div></article>
+    </section>
+    <section className="information-footer"><div><p className="eyebrow">{event.notice}</p><h2>Reserve su lugar en la conferencia.</h2></div><Link className="outline-button" to="/">Ir al registro <ArrowRight size={16} /></Link></section>
+  </main>
 }
 
 function AdminLayout() {
@@ -367,7 +390,7 @@ function AdminLayout() {
   if (organizerQuery.isError || !organizer) return <div className="auth-loading">{getImpersonationId() && <><p>La vista del usuario se ha detenido.</p><button className="button button-dark" disabled={identityChanging} onClick={() => void changeIdentity()}>Volver a mi cuenta</button></>}{identityError && <p role="alert">{identityError}</p>}<p role="alert">No pudimos verificar tu acceso al evento.</p><button className="button button-dark" onClick={() => void organizerQuery.refetch()}>Reintentar</button><button className="outline-button" onClick={() => { if (supabase) void supabase.auth.signOut() }}>Cerrar sesión</button></div>
   const organizerInitials = organizer.displayName.split(' ').map(name => name[0]).slice(0, 2).join('').toUpperCase()
   const sentInvitations = guests.filter(guest => guest.invite === 'Enviada' || Boolean(guest.whatsappSentAt)).length
-  return <OrganizerRoleContext.Provider value={organizer.roleCode}><div className={`admin-shell ${mobileNavOpen ? 'mobile-open' : ''}`}><aside className="sidebar"><div className="sidebar-brand"><Logo /><span>RZ EVENTOS</span></div><div className="event-switcher"><span>EVENTO ACTIVO</span><strong>Familias empresarias</strong><ChevronDown size={15} /></div><nav onClick={() => setMobileNavOpen(false)}><Link to="/admin" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}><LayoutDashboard size={18} /> Resumen</Link><Link to="/admin/invitados" activeProps={{ className: 'active' }}><Users size={18} /> Invitados <b>{sentInvitations}</b></Link><Link to="/admin/check-in" activeProps={{ className: 'active' }}><CheckCircle2 size={18} /> Registro en evento</Link><Link to="/admin/croquis" activeProps={{ className: 'active' }}><LayoutGrid size={18} /> Croquis del evento</Link>{canManageInvitations && <Link to="/admin/configuracion" activeProps={{ className: 'active' }}><Settings2 size={18} /> Configuración</Link>}{organizer.actorIsAdmin && <ImpersonationControl key={organizer.impersonationId || 'self'} profile={organizer} busy={identityChanging} error={identityError} onChange={changeIdentity} />}</nav><div className="sidebar-bottom"><div className="user-avatar">{organizerInitials}</div><div><strong>{organizer.displayName}</strong><small>{organizer.role}</small></div><button className="sidebar-logout" onClick={() => { localStorage.removeItem('rz-organizer-authenticated'); sessionStorage.removeItem('rz-organizer-authenticated'); if (supabase) void supabase.auth.signOut(); else { setLocalAuthenticated(false); setAuthenticated(false) } }} aria-label="Cerrar sesión"><LogOut size={17} aria-hidden="true" /><span>Cerrar sesión</span></button></div></aside><main className="admin-main"><header className="admin-header"><button className="mobile-menu" onClick={() => setMobileNavOpen(current => !current)} aria-label="Abrir menú"><Menu size={20} /></button><div><p className="eyebrow">Martes 17 de noviembre de 2026</p><h1>Familias empresarias</h1></div>{canManageInvitations && <div className="header-actions"><button className="icon-button" onClick={() => downloadGuestCsv(guests)} aria-label="Descargar lista de invitados"><Download size={17} /></button><button className="button button-orange small" onClick={() => void navigate({ to: '/admin/invitados' })}><Send size={16} /> Nueva invitación</button></div>}</header>{identityChanging ? <div className="impersonation-busy" role="status">Cambiando de usuario…</div> : <div key={`${organizer.actorUserId}:${organizer.userId}:${organizer.impersonationId || 'self'}`}><Outlet /></div>}</main></div></OrganizerRoleContext.Provider>
+  return <OrganizerRoleContext.Provider value={organizer.roleCode}><div className={`admin-shell ${mobileNavOpen ? 'mobile-open' : ''}`}><aside className="sidebar"><div className="sidebar-brand"><Logo symbol /><span>RUVALCABA VILLALOBOS</span></div><div className="event-switcher"><span>EVENTO ACTIVO</span><strong>Reformas fiscales 2027</strong><ChevronDown size={15} /></div><nav onClick={() => setMobileNavOpen(false)}><Link to="/admin" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}><LayoutDashboard size={18} /> Resumen</Link><Link to="/admin/invitados" activeProps={{ className: 'active' }}><Users size={18} /> Invitados <b>{sentInvitations}</b></Link><Link to="/admin/check-in" activeProps={{ className: 'active' }}><CheckCircle2 size={18} /> Registro en evento</Link><Link to="/admin/croquis" activeProps={{ className: 'active' }}><LayoutGrid size={18} /> Croquis del evento</Link>{canManageInvitations && <Link to="/admin/configuracion" activeProps={{ className: 'active' }}><Settings2 size={18} /> Configuración</Link>}{organizer.actorIsAdmin && <ImpersonationControl key={organizer.impersonationId || 'self'} profile={organizer} busy={identityChanging} error={identityError} onChange={changeIdentity} />}</nav><div className="sidebar-bottom"><div className="user-avatar">{organizerInitials}</div><div><strong>{organizer.displayName}</strong><small>{organizer.role}</small></div><button className="sidebar-logout" onClick={() => { localStorage.removeItem('rz-organizer-authenticated'); sessionStorage.removeItem('rz-organizer-authenticated'); if (supabase) void supabase.auth.signOut(); else { setLocalAuthenticated(false); setAuthenticated(false) } }} aria-label="Cerrar sesión"><LogOut size={17} aria-hidden="true" /><span>Cerrar sesión</span></button></div></aside><main className="admin-main"><header className="admin-header"><button className="mobile-menu" onClick={() => setMobileNavOpen(current => !current)} aria-label="Abrir menú"><Menu size={20} /></button><div><p className="eyebrow">{event.date}</p><h1>{event.title} {event.accent}</h1></div>{canManageInvitations && <div className="header-actions"><button className="icon-button" onClick={() => downloadGuestCsv(guests)} aria-label="Descargar lista de invitados"><Download size={17} /></button><button className="button button-orange small" onClick={() => void navigate({ to: '/admin/invitados' })}><Send size={16} /> Nueva invitación</button></div>}</header>{identityChanging ? <div className="impersonation-busy" role="status">Cambiando de usuario…</div> : <div key={`${organizer.actorUserId}:${organizer.userId}:${organizer.impersonationId || 'self'}`}><Outlet /></div>}</main></div></OrganizerRoleContext.Provider>
 }
 
 function AdminLogin({ onLocalAuthenticated }: { onLocalAuthenticated: () => void }) {
@@ -553,7 +576,7 @@ function GuestPassModal({ guest, token, onClose }: { guest: Guest; token: string
     })
     return () => { current = false }
   }, [token])
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="modal-card guest-pass-modal" onMouseDown={e => e.stopPropagation()}><button className="modal-close" onClick={onClose} aria-label="Cerrar entrada">×</button><p className="eyebrow orange">Entrada personal</p><h2>{guest.name}</h2><p className="muted">{event.date}<br />{event.time}<br />{event.venue} · {event.city}</p><div className="pass-qr-preview">{qrDataUrl ? <img src={qrDataUrl} alt={`Código QR de ${guest.name}`} /> : <span>Generando QR…</span>}</div><p className="pass-preview-note">Esta entrada es personal e intransferible. Puede mostrarse desde el celular; no necesita imprimirse.</p><button className="button button-orange" disabled={!qrDataUrl} onClick={() => void downloadGuestPass(guest.name, token)}><Download size={16} /> Descargar PDF</button></div></div>
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="modal-card guest-pass-modal" onMouseDown={e => e.stopPropagation()}><button className="modal-close" onClick={onClose} aria-label="Cerrar entrada">×</button><p className="eyebrow orange">Entrada personal</p><h2>{guest.name}</h2><p className="muted">{event.date}<br />{event.time} · {event.registration}<br />{event.venue} · {event.city}</p><div className="pass-qr-preview">{qrDataUrl ? <img src={qrDataUrl} alt={`Código QR de ${guest.name}`} /> : <span>Generando QR…</span>}</div><p className="pass-preview-note">Esta entrada es personal e intransferible. Puede mostrarse desde el celular; no necesita imprimirse.</p><button className="button button-orange" disabled={!qrDataUrl} onClick={() => void downloadGuestPass(guest.name, token)}><Download size={16} /> Descargar PDF</button></div></div>
 }
 
 function GuestsPage() {
@@ -943,7 +966,7 @@ function AdminConfigurationPage() {
     setForm({ email: '', displayName: '', role: 'staff' })
     await refetch()
   }
-  return <section className="dashboard"><div className="page-heading"><div><p className="eyebrow orange">Configuración</p><h2>Detalles del evento</h2><p className="muted">Esta información aparece en el registro público.</p></div><button className="button button-orange">Guardar cambios</button></div><div className="panel settings-panel"><div className="settings-section"><p className="eyebrow">Identidad del evento</p><label>Nombre del evento<input defaultValue={`${event.title} ${event.accent}`} /></label><label>Tipo de evento<input defaultValue="Conferencia privada" /></label></div><div className="settings-section"><p className="eyebrow">Fecha y ubicación</p><div className="two-fields"><label>Fecha<input defaultValue="17/11/2026" /></label><label>Hora<input defaultValue="9:00 h" /></label></div><label>Sede<input defaultValue={`${event.venue}, ${event.city}`} /></label></div></div><div className="members-settings"><div><p className="eyebrow orange">Acceso al panel</p><h3>Usuarios autorizados</h3><p className="muted">Solo los usuarios registrados en Supabase Authentication pueden entrar al panel.</p></div><div className="members-list">{isLoading ? <p className="muted">Cargando usuarios…</p> : members.map(member => <div className="member-row" key={member.userId}><div className="table-avatar">{member.displayName.split(' ').map((part: string) => part[0]).slice(0, 2).join('')}</div><div><strong>{member.displayName}</strong><small>{member.email}</small></div>{currentProfile && member.userId !== currentProfile.userId ? <div className="member-role-editor"><label>Rol de {member.displayName}<select value={roleDrafts[member.userId] ?? member.roleCode} disabled={roleSaving !== null} onChange={e => setRoleDrafts(current => ({ ...current, [member.userId]: e.target.value }))}><option value="admin">Administrador</option><option value="leader">Líder</option><option value="staff">Equipo</option><option value="viewer">Consulta</option></select></label><button type="button" className="button button-dark small" disabled={roleSaving !== null || (roleDrafts[member.userId] ?? member.roleCode) === member.roleCode} onClick={() => void saveRole(member.userId, roleDrafts[member.userId] ?? member.roleCode)}>{roleSaving === member.userId ? 'Guardando…' : 'Guardar rol'}</button></div> : <span>{member.role}</span>}</div>)}</div>{roleError && <p className="form-error" role="alert">{roleError}</p>}{roleNotice && <p className="guest-list-summary" role="status">{roleNotice}</p>}<form className="member-form" onSubmit={saveMember}><div><p className="eyebrow">Agregar acceso</p><p className="muted">El correo debe existir previamente en Authentication → Users.</p></div><label>Correo electrónico<input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="usuario@empresa.com" /></label><label>Nombre <small>(opcional)</small><input value={form.displayName} onChange={e => setForm({ ...form, displayName: e.target.value })} placeholder="Nombre del usuario" /></label><label>Rol<select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option value="admin">Administrador</option><option value="leader">Líder</option><option value="staff">Equipo</option><option value="viewer">Consulta</option></select></label>{error && <p className="form-error">{error}</p>}<button className="button button-orange" disabled={saving}>{saving ? 'Guardando…' : 'Autorizar usuario'} <ArrowRight size={16} /></button></form></div></section>
+  return <section className="dashboard"><div className="page-heading"><div><p className="eyebrow orange">Configuración</p><h2>Detalles del evento</h2><p className="muted">Esta información aparece en el registro público.</p></div><button className="button button-orange">Guardar cambios</button></div><div className="panel settings-panel"><div className="settings-section"><p className="eyebrow">Identidad del evento</p><label>Nombre del evento<input defaultValue={`${event.title} ${event.accent}`} /></label><label>Tipo de evento<input defaultValue={event.eyebrow} /></label></div><div className="settings-section"><p className="eyebrow">Fecha y ubicación</p><div className="two-fields"><label>Fecha<input defaultValue="03/12/2026" /></label><label>Hora<input defaultValue={event.time} /></label></div><label>Sede<input defaultValue={`${event.venue}, ${event.city}`} /></label></div></div><div className="members-settings"><div><p className="eyebrow orange">Acceso al panel</p><h3>Usuarios autorizados</h3><p className="muted">Solo los usuarios registrados en Supabase Authentication pueden entrar al panel.</p></div><div className="members-list">{isLoading ? <p className="muted">Cargando usuarios…</p> : members.map(member => <div className="member-row" key={member.userId}><div className="table-avatar">{member.displayName.split(' ').map((part: string) => part[0]).slice(0, 2).join('')}</div><div><strong>{member.displayName}</strong><small>{member.email}</small></div>{currentProfile && member.userId !== currentProfile.userId ? <div className="member-role-editor"><label>Rol de {member.displayName}<select value={roleDrafts[member.userId] ?? member.roleCode} disabled={roleSaving !== null} onChange={e => setRoleDrafts(current => ({ ...current, [member.userId]: e.target.value }))}><option value="admin">Administrador</option><option value="leader">Líder</option><option value="staff">Equipo</option><option value="viewer">Consulta</option></select></label><button type="button" className="button button-dark small" disabled={roleSaving !== null || (roleDrafts[member.userId] ?? member.roleCode) === member.roleCode} onClick={() => void saveRole(member.userId, roleDrafts[member.userId] ?? member.roleCode)}>{roleSaving === member.userId ? 'Guardando…' : 'Guardar rol'}</button></div> : <span>{member.role}</span>}</div>)}</div>{roleError && <p className="form-error" role="alert">{roleError}</p>}{roleNotice && <p className="guest-list-summary" role="status">{roleNotice}</p>}<form className="member-form" onSubmit={saveMember}><div><p className="eyebrow">Agregar acceso</p><p className="muted">El correo debe existir previamente en Authentication → Users.</p></div><label>Correo electrónico<input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="usuario@empresa.com" /></label><label>Nombre <small>(opcional)</small><input value={form.displayName} onChange={e => setForm({ ...form, displayName: e.target.value })} placeholder="Nombre del usuario" /></label><label>Rol<select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option value="admin">Administrador</option><option value="leader">Líder</option><option value="staff">Equipo</option><option value="viewer">Consulta</option></select></label>{error && <p className="form-error">{error}</p>}<button className="button button-orange" disabled={saving}>{saving ? 'Guardando…' : 'Autorizar usuario'} <ArrowRight size={16} /></button></form></div></section>
 }
 
 const rootRoute = createRootRoute({ component: PublicShell })

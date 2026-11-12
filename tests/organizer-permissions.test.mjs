@@ -146,7 +146,7 @@ test('administrator export button downloads the guest list', async () => {
   const button = buttons.find(props => React.Children.toArray(props.children).some(child => typeof child === 'string' && child.includes('Exportar CSV')))
   assert.ok(button)
   button.onClick()
-  assert.equal(downloaded.filename, 'invitados-familias-empresarias.csv')
+  assert.equal(downloaded.filename, 'invitados-reformas-fiscales-2027.csv')
   assert.match(await downloaded.blob.text(), /test@example.com/)
 })
 

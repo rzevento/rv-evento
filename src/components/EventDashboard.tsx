@@ -31,12 +31,12 @@ export default function EventDashboard({ canExport = false, guests, loading, err
   function exportRows() {
     if (!canExport) return
     const url = URL.createObjectURL(new Blob([dashboardCsv(filtered)], { type: 'text/csv;charset=utf-8' }))
-    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'rz-dashboard-invitados.csv'; anchor.click(); URL.revokeObjectURL(url)
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'rv-dashboard-invitados.csv'; anchor.click(); URL.revokeObjectURL(url)
   }
   if (loading) return <section className="rz-dash rz-message" role="status"><RefreshCw size={22} /><h2>Cargando el resumen…</h2><p>Consultando invitados, respuestas y llegadas.</p></section>
   if (error && !updatedAt) return <section className="rz-dash rz-message" role="alert"><AlertCircle size={24} /><h2>No pudimos cargar los datos</h2><p>Revisa tu conexión o sesión e intenta de nuevo.</p><button onClick={onRefresh} disabled={refreshing}>Volver a intentar</button></section>
   return <section className="rz-dash">
-    <div className="rz-title"><div><p className="rz-kicker">RZ EVENTOS / RESUMEN</p><h2>Tu evento, de un vistazo.</h2><p>Invitaciones, respuestas y asistencia en un mismo lugar.</p></div><button className="rz-button" onClick={onRefresh} disabled={refreshing}><RefreshCw size={15} />{refreshing ? 'Actualizando…' : 'Actualizar'}</button></div>
+    <div className="rz-title"><div><p className="rz-kicker">REFORMAS FISCALES 2027 / RESUMEN</p><h2>Tu evento, de un vistazo.</h2><p>Invitaciones, respuestas y asistencia en un mismo lugar.</p></div><button className="rz-button" onClick={onRefresh} disabled={refreshing}><RefreshCw size={15} />{refreshing ? 'Actualizando…' : 'Actualizar'}</button></div>
     <div className="rz-meta"><span><i />{demo ? 'Vista de demostración · datos de ejemplo' : 'Datos del evento activo'}</span><span>{updatedAt ? `Última consulta: ${new Date(updatedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}` : ''}</span></div>
     {error && <div className="rz-warning" role="alert">No se pudo actualizar. Estás viendo la última consulta disponible.<button onClick={onRefresh}>Reintentar</button></div>}
     <div className="rz-metrics">

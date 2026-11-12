@@ -11,14 +11,14 @@ insert into public.events (
   registration_deadline
 )
 values (
-  'Familias empresarias en la era de las turbulencias:',
-  'Conferencia privada',
-  'retos y oportunidades',
-  '2026-11-17',
-  '9:00 h · Registro desde las 8:30 h',
-  'Hyatt Regency Andares',
+  'Reformas fiscales',
+  'Conferencia para clientes y amigos',
+  '2027',
+  '2026-12-03',
+  '16:00 – 19:30 h · Registro 15:30 h',
+  'Hotel RIU',
   'Guadalajara, Jalisco',
-  'Manuel Bermejo Sánchez',
-  'José Roberto Romo Zepeda',
-  '2026-11-16'
+  null,
+  null,
+  null
 );

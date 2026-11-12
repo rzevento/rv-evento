@@ -19,7 +19,7 @@ function setup({ direct = false, cancelError = false, submitError = null } = {})
     submitRsvp: async () => ({ error: submitError }),
     beginRsvp: async () => ({ data: { token: 'personal-token', status: 'already_registered' }, error: null }),
     cancelRsvp: async token => { calls.push(token); return { error: cancelError ? new Error('network') : null } },
-    event: {}, Logo: 'Logo', Link: 'Link',
+    event: {}, Logo: 'Logo', Aniversario: 'Aniversario', Link: 'Link',
   }
   for (const name of ['Check', 'CalendarDays', 'ShieldCheck', 'Download', 'ArrowRight', 'MapPin', 'LockKeyhole']) context[name] = name
   vm.createContext(context)
@@ -36,14 +36,14 @@ function text(tree) { return typeof tree === 'string' ? tree : (tree?.children |
 test('a confirmed personal link shows reserved place and download/cancel actions immediately', async () => {
   const app = setup({ direct: true }); app.render(); await app.load()
   const tree = app.render()
-  assert.match(text(tree), /Tu asistencia ya está confirmada/)
-  assert.match(text(tree), /No necesitas registrarte otra vez/)
-  assert.ok(nodes(tree).some(n => n.type === 'button' && text(n).trim() === 'Descargar invitación'))
+  assert.match(text(tree), /Su asistencia ya está confirmada/)
+  assert.match(text(tree), /No necesita registrarse otra vez/)
+  assert.ok(nodes(tree).some(n => n.type === 'button' && text(n).trim() === 'Descargar entrada'))
   const cancel = nodes(tree).find(n => n.type === 'button' && text(n) === 'Cancelar mi asistencia')
   cancel.props.onClick()
   await new Promise(resolve => setImmediate(resolve))
   assert.deepEqual(app.calls, ['personal-token'])
-  assert.match(text(app.render()), /Tu cancelación quedó registrada/)
+  assert.match(text(app.render()), /Su cancelación quedó registrada/)
   assert.match(text(app.render()), /Volver a confirmar asistencia/)
 })
 test('an already registered email retrieves saved guest details before offering the invitation', async () => {
@@ -52,16 +52,16 @@ test('an already registered email retrieves saved guest details before offering 
   email.props.onChange({ target: { value: 'ana@example.com' } })
   tree = app.render()
   await nodes(tree).find(n => n.type === 'form').props.onSubmit({ preventDefault() {} })
-  assert.match(text(app.render()), /Tu asistencia ya está confirmada/)
+  assert.match(text(app.render()), /Su asistencia ya está confirmada/)
 })
 test('a failed cancellation keeps the invitation available and displays an error', async () => {
   const app = setup({ direct: true, cancelError: true }); app.render(); await app.load()
   await nodes(app.render()).find(n => n.type === 'button' && text(n) === 'Cancelar mi asistencia').props.onClick()
   await new Promise(resolve => setImmediate(resolve))
   const tree = app.render()
-  assert.match(text(tree), /No pudimos cancelar tu asistencia/)
-  assert.match(text(tree), /Descargar invitación/)
-  assert.doesNotMatch(text(tree), /Tu cancelación quedó registrada/)
+  assert.match(text(tree), /No pudimos cancelar su asistencia/)
+  assert.match(text(tree), /Descargar entrada/)
+  assert.doesNotMatch(text(tree), /Su cancelación quedó registrada/)
 })
 
 for (const [constraint, message] of [
@@ -75,7 +75,7 @@ for (const [constraint, message] of [
     await nodes(app.render()).find(n => n.type === 'form').props.onSubmit({ preventDefault() {} })
     const tree = app.render()
     assert.match(text(tree), new RegExp(message))
-    assert.doesNotMatch(text(tree), /Tu lugar para la conferencia está apartado/)
+    assert.doesNotMatch(text(tree), /Su lugar está reservado/)
     assert.equal(nodes(tree).filter(n => n.type === 'form').length, 1)
   })
 }

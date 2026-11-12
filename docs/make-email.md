@@ -6,11 +6,11 @@ WhatsApp se envía manualmente desde el panel. Make solo necesita este escenario
 
 ## 1. Crear el escenario
 
-En Make, abre **Scenarios → Create a new scenario**. Nómbralo **RZeventos - Enviar correo**.
+En Make, abre **Scenarios → Create a new scenario**. Nómbralo **RV Reformas fiscales 2027 - Enviar correo**.
 
 ## 2. Crear el webhook
 
-Agrega **Webhooks → Custom webhook → Add** y usa el nombre `rz_enviar_correo`.
+Agrega **Webhooks → Custom webhook → Add** y usa el nombre `rv_enviar_correo`.
 Activa **API Key authentication**, crea una clave y guárdala de forma segura junto con la URL generada. La integración enviará la clave en el encabezado `x-make-apikey`.
 
 ## 3. Definir los campos
@@ -42,20 +42,22 @@ Si la cuenta remitente usa Gmail o Google Workspace, agrega **Gmail → Send an 
 | Campo | Configuración |
 |---|---|
 | To | Seleccionar `email` del webhook |
-| Subject | `Tu invitación · Familias empresarias` |
+| Subject | `Invitación · Reformas fiscales 2027 · Ruvalcaba Villalobos` |
 | Body type | `Collection of contents` |
 | Body contents | Texto de abajo, insertando nombre y enlace desde el selector de Make |
 
-> Hola, [guest_name]:
+> Estimado(a) [guest_name]:
 >
-> Te invitamos a Familias empresarias en la era de las turbulencias: retos y oportunidades.
+> Ruvalcaba Villalobos, Consultores Fiscales, le invita a la conferencia Reformas fiscales 2027. Jueves 3 de diciembre, 16:00 a 19:30 h (registro 15:30 h), Hotel RIU, Guadalajara, Jalisco.
 >
-> Consulta los detalles y confirma tu asistencia aquí:
+> Consulte los detalles y regístrese aquí:
 > [invitation_url]
 >
-> Esta invitación es personal e intransferible.
+> Invitación personal e intransferible.
 >
-> RZ Eventos
+> Ruvalcaba Villalobos · 40 aniversario
+
+Para un correo con diseño, usa como contenido HTML `emails/invitacion-make.html`; la imagen se sirve desde `https://rv-evento.vercel.app/brand/invitacion.png`.
 
 Los corchetes son referencias para insertar los campos dinámicos; no dejarlos como texto literal. Envía un mensaje por invitado, con su propio enlace.
 
@@ -91,7 +93,7 @@ WhatsApp tiene un control separado: abrir el mensaje, enviarlo manualmente y pul
 
 El panel muestra **Enviar recordatorio** junto al correo sólo si ese correo ya recibió la invitación y el RSVP sigue pendiente. La función vuelve a consultar el RSVP antes del envío: si ya confirmó o canceló, rechaza el recordatorio. Se reutiliza el enlace personal.
 
-Para activar el correo de recordatorio, crea **otro escenario de Make** con el mismo flujo `Custom webhook → Send an email → Webhook response`. Usa como asunto `RZ Consultoría | Nos dará mucho gusto contar con su presencia` y como contenido HTML [recordatorio-make.html](../emails/recordatorio-make.html). Configura el destinatario como `{{1.email}}` y conserva las variables `{{1.guest_name}}` y `{{1.invitation_url}}`. La respuesta `{"ok":true}` debe ocurrir sólo después de que el módulo de correo termine correctamente. Guarda la URL del nuevo webhook en el secreto `MAKE_REMINDER_WEBHOOK_URL` de Supabase; puede usar la misma clave `MAKE_WEBHOOK_API_KEY` si habilitas esa clave también en el nuevo webhook. Publica la función `send-invitation` actualizada y prueba con un contacto de prueba cuyo correo figure enviado y cuyo RSVP siga pendiente. Sin el nuevo secreto, la función rechaza el recordatorio antes de llamar a Make.
+Para activar el correo de recordatorio, crea **otro escenario de Make** con el mismo flujo `Custom webhook → Send an email → Webhook response`. Usa como asunto `Ruvalcaba Villalobos | Reformas fiscales 2027 · Nos dará gusto contar con su presencia` y como contenido HTML [recordatorio-make.html](../emails/recordatorio-make.html). Configura el destinatario como `{{1.email}}` y conserva las variables `{{1.guest_name}}` y `{{1.invitation_url}}`. La respuesta `{"ok":true}` debe ocurrir sólo después de que el módulo de correo termine correctamente. Guarda la URL del nuevo webhook en el secreto `MAKE_REMINDER_WEBHOOK_URL` de Supabase; puede usar la misma clave `MAKE_WEBHOOK_API_KEY` si habilitas esa clave también en el nuevo webhook. Publica la función `send-invitation` actualizada y prueba con un contacto de prueba cuyo correo figure enviado y cuyo RSVP siga pendiente. Sin el nuevo secreto, la función rechaza el recordatorio antes de llamar a Make.
 
 En WhatsApp aparece **Abrir recordatorio en WhatsApp** cuando hay un envío previo registrado por cualquier canal y el RSVP sigue pendiente. El texto queda precargado, pero la persona que opera debe enviarlo manualmente. Antes de usarlo conviene actualizar la lista: WhatsApp no puede volver a verificar el RSVP después de abrir el chat.
 

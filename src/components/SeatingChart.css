@@ -1,5 +1,5 @@
-.seating-page h2 { font: 800 38px/1 'Manrope', sans-serif; letter-spacing: -.06em; margin: 0 0 10px; }
-.seating-page h3 { font: 800 19px/1.15 'Manrope', sans-serif; letter-spacing: -.03em; margin: 0; }
+.seating-page h2 { font: 800 38px/1 'Source Serif 4', sans-serif; letter-spacing: -.06em; margin: 0 0 10px; }
+.seating-page h3 { font: 800 19px/1.15 'Source Serif 4', sans-serif; letter-spacing: -.03em; margin: 0; }
 .seating-actions { align-items: center; }
 .seating-actions .button { margin-top: 0; }
 .seating-alert { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: #fbeee2; border: 1px solid #efc9a6; color: #8a4a12; padding: 12px 14px; font-size: 12px; margin: 0 0 18px; }
@@ -9,7 +9,7 @@
 .seating-stats { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 14px; margin-bottom: 18px; }
 .seating-stat { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .seating-stat > span { text-transform: uppercase; letter-spacing: .14em; font-size: 9px; font-weight: 700; color: #8e857b; }
-.seating-stat > strong { font: 800 40px/1 'Manrope', sans-serif; letter-spacing: -.05em; color: #241f1a; }
+.seating-stat > strong { font: 800 40px/1 'Source Serif 4', sans-serif; letter-spacing: -.05em; color: #241f1a; }
 .seating-stat-main > strong { color: var(--orange-dark); }
 .seating-stat > small { color: #6f675d; font-size: 12px; line-height: 1.45; }
 .seating-base { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -36,7 +36,7 @@
 .seat.taken { background: var(--orange); border-color: var(--orange-dark); }
 .seat.warn { background: #d9a3a8; border-color: #aa6970; }
 .seat-top { position: absolute; inset: 31px; border-radius: 50%; background: #fffdf9; border: 1.5px solid #cdbfb0; display: grid; place-content: center; text-align: center; }
-.seat-top strong { font: 800 22px/1 'Manrope', sans-serif; letter-spacing: -.04em; }
+.seat-top strong { font: 800 22px/1 'Source Serif 4', sans-serif; letter-spacing: -.04em; }
 .seat-top small { font-size: 10px; color: #8e857b; margin-top: 2px; }
 .seat-table.full .seat-top { background: #241f1a; border-color: #241f1a; color: #fffdf9; }
 .seat-table.full .seat-top small { color: #d4c9bc; }

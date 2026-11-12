@@ -3,7 +3,7 @@
 .rz-daily h3 svg { color: #63816c; }
 .rz-daily-period { display: flex; align-items: center; gap: 8px; font-size: 10px; color: #707b75; font-weight: 400; }
 .rz-daily-summary { display: flex; align-items: baseline; flex-wrap: wrap; gap: 22px; margin: 6px 0 25px; color: #67776a; font-size: 12px; }
-.rz-daily-summary strong { color: #284c3e; font: 800 25px/1.2 'Manrope', sans-serif; margin-right: 4px; }
+.rz-daily-summary strong { color: #284c3e; font: 800 25px/1.2 'Source Serif 4', sans-serif; margin-right: 4px; }
 .rz-daily-summary > small { margin-left: auto; font-size: 10px; }
 .rz-daily-scroll { overflow-x: auto; padding-top: 10px; }
 .rz-daily-scroll:focus-visible { outline: 2px solid #63816c; outline-offset: 3px; }
