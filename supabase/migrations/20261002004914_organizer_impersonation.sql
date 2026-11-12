@@ -22,7 +22,7 @@ create index organizer_impersonation_actor_idx on private.organizer_impersonatio
 
 create function private.request_impersonation_id() returns uuid
 language sql stable set search_path = '' as $$
-  select nullif(coalesce(nullif(current_setting('request.headers', true), ''), '{}')::jsonb ->> 'x-rz-impersonation', '')::uuid;
+  select nullif(coalesce(nullif(current_setting('request.headers', true), ''), '{}')::jsonb ->> 'x-rv-impersonation', '')::uuid;
 $$;
 
 create function private.impersonation_session()

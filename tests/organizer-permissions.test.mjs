@@ -65,7 +65,7 @@ function render(component, { role = 'staff', actorIsAdmin = role === 'admin', im
     ...Object.fromEntries(icons.map(name => [name, () => null])),
     supabase: null, demoGuests: data, canSendPendingEmail: () => true, canSendReminderEmail: item => item.invite === 'Enviada' && item.status === 'Pendiente' && !item.reminderSentAt, whatsappPhone: value => value,
     localStorage: { getItem: () => null },
-    event: { title: 'Evento de prueba', date: '17 de noviembre' },
+    event: { title: 'Evento de prueba', date: '3 de diciembre' },
   }
   vm.runInNewContext(compile(componentSource + `\nexports.Component = ${component};`), sandbox)
   return renderToStaticMarkup(React.createElement(OrganizerRoleContext.Provider, { value: role }, React.createElement(sandbox.exports.Component)))

@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.111.0'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-rz-impersonation',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-rv-impersonation',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 const json = (body: Record<string, unknown>, status = 200) =>
@@ -34,7 +34,7 @@ Deno.serve(async (request) => {
 
     // Keep database reads and writes scoped to the authenticated organizer's RLS.
     const userClient = createClient(supabaseUrl, publicKey, {
-      global: { headers: { Authorization: authorization, ...(request.headers.get('x-rz-impersonation') ? { 'x-rz-impersonation': request.headers.get('x-rz-impersonation')! } : {}) } },
+      global: { headers: { Authorization: authorization, ...(request.headers.get('x-rv-impersonation') ? { 'x-rv-impersonation': request.headers.get('x-rv-impersonation')! } : {}) } },
       auth: { persistSession: false, autoRefreshToken: false },
     })
     const { data: guest, error: guestError } = await userClient.from('guests')

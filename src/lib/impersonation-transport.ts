@@ -1,4 +1,4 @@
-export const IMPERSONATION_HEADER = 'x-rz-impersonation'
+export const IMPERSONATION_HEADER = 'x-rv-impersonation'
 let sessionId: string | null = null
 let transition = false
 let operations = 0

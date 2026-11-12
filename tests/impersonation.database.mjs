@@ -29,7 +29,7 @@ const event='20000000-0000-0000-0000-000000000001'
 let session
 async function as(n,header=null,sid='10000000-0000-0000-0000-000000000001'){
  await db.exec('reset role')
- await db.query("select set_config('request.jwt.claims',$1,false),set_config('request.headers',$2,false)",[JSON.stringify({sub:uid(n),session_id:sid}),JSON.stringify(header?{'x-rz-impersonation':header}:{})])
+ await db.query("select set_config('request.jwt.claims',$1,false),set_config('request.headers',$2,false)",[JSON.stringify({sub:uid(n),session_id:sid}),JSON.stringify(header?{'x-rv-impersonation':header}:{})])
  await db.exec('set role authenticated')
 }
 async function context(){return (await db.query('select public.get_organizer_context() as context')).rows[0].context}

@@ -83,7 +83,7 @@ La función envía los campos anteriores a Make y exige un JSON con `ok: true` a
 
 Si la conexión se interrumpe, la respuesta es `Accepted`, hay un error o se agota la espera de 25 segundos, no se marca como enviado. Revisa el historial de Make antes de volver a pulsar Enviar: el escenario podría haber continuado. Si el correo salió pero falló el guardado en Supabase, reconcilia su estado antes de reintentar.
 
-Prueba desde el panel de RZeventos con sesión de administrador y tu propio correo, con Make en Run once. El botón Test de Supabase no sustituye la sesión de usuario que requiere esta función. Después activa el escenario de Make.
+Prueba desde el panel del evento con sesión de administrador y tu propio correo, con Make en Run once. El botón Test de Supabase no sustituye la sesión de usuario que requiere esta función. Después activa el escenario de Make.
 
 La URL y clave del webhook deben guardarse en secretos de Supabase como `MAKE_WEBHOOK_URL` y `MAKE_WEBHOOK_API_KEY`; nunca en variables `VITE_*`. `PUBLIC_SITE_URL` debe apuntar al dominio publicado. No compartas claves en el repositorio.
 

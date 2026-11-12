@@ -17,7 +17,7 @@ function setup(options = {}) {
       if (table === 'invitations') {
         if (key === 'public') {
           assert.equal(config.global?.headers.Authorization, 'Bearer valid')
-          assert.equal(config.global?.headers['x-rz-impersonation'], options.impersonation ? 'session-1' : undefined)
+          assert.equal(config.global?.headers['x-rv-impersonation'], options.impersonation ? 'session-1' : undefined)
         } else assert.equal(key, 'secret')
       }
       let updating = false
@@ -45,7 +45,7 @@ function setup(options = {}) {
       return new Response(options.reply ?? '{"ok":true}', { status: options.status || 200 })
     },
   })
-  return { call: async (body = {guest_id:id}, auth = true) => handler(new Request('https://test/function', {method:'POST',headers: auth ? {Authorization:'Bearer valid', ...(options.impersonation ? {'x-rz-impersonation':'session-1'} : {})} : {},body:typeof body === 'string' ? body : JSON.stringify(body)})), counts: () => ({sends,updates}), payload: () => sentPayload }
+  return { call: async (body = {guest_id:id}, auth = true) => handler(new Request('https://test/function', {method:'POST',headers: auth ? {Authorization:'Bearer valid', ...(options.impersonation ? {'x-rv-impersonation':'session-1'} : {})} : {},body:typeof body === 'string' ? body : JSON.stringify(body)})), counts: () => ({sends,updates}), payload: () => sentPayload }
 }
 test('validates authentication, input and permitted membership before sending', async () => {
   for(const [opts,body,auth,status] of [[{}, {guest_id:id},false,401],[{invalidAuth:true},{guest_id:id},true,401],[{},'{bad',true,400],[{role:'staff'},{guest_id:id},true,403],[{noGuest:true},{guest_id:id},true,404],[{noEmail:true},{guest_id:id},true,400]]) {
