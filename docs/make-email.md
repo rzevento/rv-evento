@@ -48,18 +48,27 @@ Si la cuenta remitente usa Gmail o Google Workspace, agrega **Gmail → Send an 
 | Body type | `Collection of contents` |
 | Body contents | Texto de abajo, insertando nombre y enlace desde el selector de Make |
 
-> [greeting]
+> Estimados clientes y amigos:
 >
-> Ruvalcaba Villalobos, Consultores Fiscales, le invita a la conferencia Reformas fiscales 2027. Jueves 3 de diciembre, 16:00 a 19:30 h (registro 15:30 h), Hotel RIU, Guadalajara, Jalisco.
+> Tenemos el agrado de invitarlos a nuestra conferencia de Reformas Fiscales 2027.
 >
-> Consulte los detalles y regístrese aquí:
-> [invitation_url]
+> Fecha: jueves 3 de diciembre de 2026.
+> Horario: de 4:00 a 7:30 p.m. (registro a partir de las 3:30 p.m.)
+> Lugar: Hotel RIU Guadalajara
 >
-> Invitación personal e intransferible.
+> Para su registro de asistencia, les solicitamos dar clic en el cuadro “Regístrese aquí” de la invitación, utilizando la misma dirección de correo electrónico en la que recibieron este mensaje, ya que la invitación es personal e intransferible.
 >
-> Ruvalcaba Villalobos · 40 aniversario
+> Regístrese aquí: [invitation_url]
+>
+> Una vez que realice su registro, le enviaremos al mismo correo el código QR para ingresar a la conferencia.
+>
+> Será un placer contar con su asistencia y saludarlos personalmente en el evento.
+>
+> Quedamos a sus órdenes para cualquier duda o aclaración.
+>
+> Ruvalcaba Villalobos · Consultores Fiscales · 40 aniversario
 
-Para un correo con diseño, usa como contenido HTML `emails/invitacion-make.html`; la imagen se sirve desde `https://rv-evento.vercel.app/brand/invitacion.png`.
+Para un correo con diseño, usa como contenido HTML `emails/invitacion-make.html`; las imágenes (invitación, logo y 40 aniversario) se sirven desde `https://rv-evento.vercel.app/brand/`, así que deben estar publicadas en Vercel antes de enviar.
 
 Los corchetes son referencias para insertar los campos dinámicos; no dejarlos como texto literal. Envía un mensaje por invitado, con su propio enlace.
 
