@@ -99,6 +99,34 @@ Para activar el correo de recordatorio, crea **otro escenario de Make** con el m
 
 En WhatsApp aparece **Abrir recordatorio en WhatsApp** cuando hay un envío previo registrado por cualquier canal y el RSVP sigue pendiente. El texto queda precargado, pero la persona que opera debe enviarlo manualmente. Antes de usarlo conviene actualizar la lista: WhatsApp no puede volver a verificar el RSVP después de abrir el chat.
 
+## Entrada por correo al confirmar asistencia
+
+Cuando un invitado confirma desde su enlace (o un administrador lo marca como confirmado en el panel), el sitio llama a la función `send-ticket`. La función genera la misma entrada en PDF que se descarga desde la página, con su QR, y la manda a Make para que salga por correo como adjunto. Sólo se envía si el RSVP está confirmado, al correo registrado del invitado y una sola vez (queda en `invitations.ticket_sent_at`). Si Make no responde `{"ok":true}`, se libera para que un siguiente intento la vuelva a mandar. Si el invitado no tiene correo, no se envía nada; sigue pudiendo descargarla desde la página.
+
+### 1. Base de datos
+
+Pega en el SQL Editor de Supabase el contenido de `supabase/migrations/20261112120000_ticket_email.sql` y ejecútalo.
+
+### 2. Escenario de Make
+
+Crea un escenario nuevo **RV Reformas fiscales 2027 - Enviar entrada** con `Custom webhook → Send an email → Webhook response`:
+
+- **Webhook**: nombre `rv_enviar_entrada`, con API Key authentication (puede ser la misma clave `MAKE_WEBHOOK_API_KEY`). Campos: `invitation_id`, `guest_name`, `greeting`, `email`, `ticket_url`, `ticket_filename`, `ticket_pdf` (este último es el PDF en base64).
+- **Email** (GoDaddy SMTP, igual que la invitación):
+  - To: `{{1.email}}`
+  - Subject: `Su entrada · Reformas fiscales 2027 · Ruvalcaba Villalobos`
+  - Content: HTML de [entrada-make.html](../emails/entrada-make.html) (usa `{{1.greeting}}` y `{{1.ticket_url}}`).
+  - Attachments → Add item: File name `{{1.ticket_filename}}`, Data `{{toBinary(1.ticket_pdf; "base64")}}`. Si Make pide el tipo, `application/pdf`.
+- **Webhook response**: Status `200`, Body `{"ok":true}`, header `Content-Type` = `application/json`, sólo después del correo.
+
+### 3. Función de Supabase
+
+Crea la Edge Function **`send-ticket`** con el contenido de `supabase/functions/send-ticket/index.ts` y **desactiva "Verify JWT"**: el invitado no tiene sesión y su token personal es la credencial. Agrega el secreto `MAKE_TICKET_WEBHOOK_URL` con la URL del webhook nuevo (usa también `MAKE_WEBHOOK_API_KEY` y `PUBLIC_SITE_URL`, que ya existen).
+
+### 4. Probar
+
+Con Make en **Run once**, confirma la asistencia de un invitado de prueba con tu correo. Revisa que llegue el correo con el PDF adjunto, que el QR se lea en **Registro en evento** y que el botón abra la página de la entrada. Para volver a probar con el mismo invitado, pon `ticket_sent_at` en nulo en su invitación.
+
 ## Documentación oficial
 
 - [Webhooks y respuestas en Make](https://apps.make.com/gateway)

@@ -251,6 +251,18 @@ export async function sendInvitation(guestId: string, resend = false, reminder =
   })
 }
 
+// Pide a la función send-ticket que mande la entrada (PDF) al correo del invitado confirmado.
+// Es idempotente: si ya se envió o no hay correo, responde ok sin volver a mandar.
+export async function sendTicket(token: string) {
+  if (!supabase) return { data: null, error: null, demo: true }
+  const { data, error } = await supabase.functions.invoke('send-ticket', { body: { token } })
+  if (error && 'context' in error && error.context instanceof Response) {
+    const details = await error.context.json().catch(() => null)
+    if (typeof details?.error === 'string') return { data, error: new Error(details.error), demo: false }
+  }
+  return { data: data as { ok?: boolean; already_sent?: boolean; skipped?: string } | null, error, demo: false }
+}
+
 export async function markWhatsAppInvitationSent(guestId: string) {
   return organizerAction(async () => {
     if (!supabase) return { data: new Date().toISOString(), error: null, demo: true }

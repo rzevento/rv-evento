@@ -6,7 +6,7 @@ import { AlertCircle, ArrowRight, CalendarDays, Camera, Check, CheckCircle2, Che
 import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
 import { QrScanner } from './components/QrScanner'
-import { addEventMember, beginRsvp, cancelRsvp, checkInGuest, undoCheckInGuest, createGuest, updateGuest, deleteGuest, markGuestCancelled, markGuestConfirmed, findGuestByQr, getCurrentOrganizerProfile, getEventMembers, updateEventMemberRole, getInvitationToken, getInvitationDetails, markWhatsAppInvitationSent, sendInvitation, submitRsvp, supabase } from './lib/supabase'
+import { addEventMember, beginRsvp, cancelRsvp, checkInGuest, undoCheckInGuest, createGuest, updateGuest, deleteGuest, markGuestCancelled, markGuestConfirmed, findGuestByQr, getCurrentOrganizerProfile, getEventMembers, updateEventMemberRole, getInvitationToken, getInvitationDetails, markWhatsAppInvitationSent, sendInvitation, sendTicket, submitRsvp, supabase } from './lib/supabase'
 import { canSendPendingEmail, canSendReminderEmail, whatsappInvitationUrl, whatsappPhone } from './lib/invitations'
 import { OrganizerRoleContext, useCanManageInvitations, useCanSendInvitations } from './lib/organizer-permissions'
 import ImpersonationControl from './components/ImpersonationControl'
@@ -282,6 +282,8 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
       }
       return
     }
+    // La entrada también se manda por correo; si falla, sigue disponible para descargar aquí.
+    if (form.email.trim()) void sendTicket(currentToken).catch(() => undefined)
     setSent(true)
   }
   async function downloadPass() {
@@ -723,7 +725,20 @@ function GuestsPage() {
       if (!result.demo) await queryClient.invalidateQueries({ queryKey: ['guests'] })
     } catch {
       setActionError('No se pudo registrar la confirmación. Revisa tu conexión y permisos e intenta nuevamente.')
+      return
     } finally { confirmLock.current = false; setConfirmingGuest(null) }
+    if (guest.email) void emailTicket(guest)
+  }
+  async function emailTicket(guest: Guest) {
+    try {
+      const token = guest.invitationToken || (await getInvitationToken(guest.id)).data
+      if (!token) throw new Error('No se encontró la invitación de este invitado.')
+      const result = await sendTicket(token)
+      if (result.error) throw result.error
+      if (!result.demo && result.data?.ok) setBulkNotice(result.data.already_sent ? `${guest.name} ya había recibido su entrada por correo.` : `Se envió la entrada por correo a ${guest.email}.`)
+    } catch (cause) {
+      setActionError(`Se registró la confirmación, pero no se pudo enviar la entrada por correo a ${guest.email}: ${cause instanceof Error ? cause.message : 'error desconocido'}`)
+    }
   }
   async function removeGuest(guest: Guest) {
     if (deleteLock.current || cancelLock.current || confirmLock.current || bulkLock.current || individualSends || arrivalLoading) return
