@@ -54,12 +54,18 @@ async function ticketPdfBase64(name: string, accessToken: string, logo: string |
   pdf.rect(0, 0, pageWidth, 3, 'F')
   if (logo) pdf.addImage(logo, 'PNG', 24, 20, 25, 35.3)
   pdf.setTextColor(156, 123, 48)
+  // Proporciones de la invitación (Opción E): el 40 y ANIVERSARIO centrados entre sí, a la altura del logo.
   pdf.setFont('times', 'bold')
-  pdf.setFontSize(30)
-  pdf.text('40', pageWidth - 24, 34, { align: 'right' })
+  pdf.setFontSize(53)
+  const anniversaryWidth = pdf.getTextWidth('40')
   pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(7.5)
-  pdf.text('ANIVERSARIO', pageWidth - 24, 40, { align: 'right', charSpace: 0.6 })
+  pdf.setFontSize(6.5)
+  const labelWidth = pdf.getTextWidth('ANIVERSARIO') + 0.33 * 10
+  const anniversaryCenter = pageWidth - 24 - Math.max(anniversaryWidth, labelWidth) / 2
+  pdf.text('ANIVERSARIO', anniversaryCenter - labelWidth / 2, 47, { charSpace: 0.33 })
+  pdf.setFont('times', 'bold')
+  pdf.setFontSize(53)
+  pdf.text('40', anniversaryCenter, 42.5, { align: 'center' })
   pdf.setTextColor(26, 26, 26)
   pdf.setFont('times', 'bold')
   pdf.setFontSize(36)

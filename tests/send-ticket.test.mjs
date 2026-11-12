@@ -11,6 +11,7 @@ const invitationId = '00000000-0000-0000-0000-000000000001'
 class FakePdf {
   internal = { pageSize: { getWidth: () => 210 } }
   splitTextToSize(text) { return [text] }
+  getTextWidth(text) { return text.length * 2 }
   output() { return new Uint8Array([37, 80, 68, 70]).buffer }
 }
 for (const method of ['setFillColor', 'rect', 'addImage', 'setTextColor', 'setFont', 'setFontSize', 'text', 'setDrawColor', 'setLineWidth', 'line']) FakePdf.prototype[method] = () => {}

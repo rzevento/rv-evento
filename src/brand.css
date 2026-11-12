@@ -57,7 +57,8 @@ input:focus { border-color: var(--rv-oro); }
 .rv-franja-superior { height: 8px; background: var(--rv-oro); }
 .public-nav { height: auto; padding-top: 22px; padding-bottom: 18px; align-items: center; }
 .public-nav .brand { color: var(--rv-negro); }
-.public-nav .brand-logo { width: auto; height: 92px; }
+/* Opción E: el logo mide 1.16 veces el tamaño del título y el 40, 0.625 (título: clamp(64px, 9vw, 150px)). */
+.public-nav .brand-logo { width: auto; height: clamp(74px, 10.4vw, 174px); }
 .public-menu { gap: 8px; }
 .public-menu > a, .quiet-link { color: var(--rv-gris); font-size: 14px; }
 .public-menu > a:hover, .public-menu > a.active, .quiet-link:hover,
@@ -110,12 +111,12 @@ input::placeholder { color: #8C857A; }
 /* ---------- 40 aniversario con brillo ---------- */
 .rv-aniversario { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; flex: none; }
 .rv-aniversario-numero {
-  font: 900 clamp(64px, 7vw, 100px)/0.9 var(--rv-font-titulo); font-variation-settings: 'opsz' 60;
+  font: 900 clamp(40px, 5.625vw, 94px)/0.9 var(--rv-font-titulo); font-variation-settings: 'opsz' 60;
   background: linear-gradient(100deg, var(--rv-oro) 0%, var(--rv-oro) 40%, var(--rv-oro-claro) 46%, var(--rv-oro-brillo) 50%, var(--rv-oro-claro) 54%, var(--rv-oro) 60%, var(--rv-oro) 100%);
   background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
   animation: rvBrillo 3.5s ease-in-out infinite;
 }
-.rv-aniversario-texto { font: 600 12px/1 var(--rv-font-etiqueta); letter-spacing: 1.78px; padding-left: 1.78px; color: var(--rv-oro-texto); white-space: nowrap; }
+.rv-aniversario-texto { font: 600 clamp(9px, 0.675vw, 11.3px)/1 var(--rv-font-etiqueta); letter-spacing: .15em; padding-left: .15em; color: var(--rv-oro-texto); white-space: nowrap; }
 @keyframes rvBrillo { 0% { background-position: 100% 0; } 60%, 100% { background-position: 0% 0; } }
 
 /* ---------- Pie: "Miembro de TaxPro" ---------- */
@@ -194,7 +195,6 @@ input::placeholder { color: #8C857A; }
 }
 @media (max-width: 700px) {
   .public-nav { padding-top: 14px; padding-bottom: 12px; }
-  .public-nav .brand-logo { height: 66px; }
   .sidebar-brand { padding-bottom: 0; }
   .public-menu > a:first-child { display: none; }
   .rv-intro-top .eyebrow { font-size: 13px; letter-spacing: 1.5px; }
