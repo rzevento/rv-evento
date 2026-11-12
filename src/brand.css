@@ -180,8 +180,9 @@ input::placeholder { color: #8C857A; }
 
 /* ---------- Panel ---------- */
 .sidebar, .next-event { background: var(--rv-negro); }
-.sidebar-brand { font-family: var(--rv-font-etiqueta); font-size: 10px; letter-spacing: .14em; gap: 10px; }
-.sidebar-brand .brand-symbol { width: 38px; height: auto; transform: none; }
+.sidebar-brand { font-family: var(--rv-font-etiqueta); font-size: 10px; letter-spacing: .14em; padding-bottom: 28px; }
+/* Dentro del panel no se muestra el encabezado del sitio público: empujaba el menú hacia abajo. */
+.public-shell:has(.admin-shell) > .rv-franja-superior, .public-shell:has(.admin-shell) > .public-nav { display: none; }
 .sidebar nav a.active { background: #2B2924 !important; }
 .event-switcher { background: #2B2924; border-color: #45403A; }
 .admin-shell { background: #F3EEE3; }
@@ -194,6 +195,7 @@ input::placeholder { color: #8C857A; }
 @media (max-width: 700px) {
   .public-nav { padding-top: 14px; padding-bottom: 12px; }
   .public-nav .brand-logo { height: 66px; }
+  .sidebar-brand { padding-bottom: 0; }
   .public-menu > a:first-child { display: none; }
   .rv-intro-top .eyebrow { font-size: 13px; letter-spacing: 1.5px; }
   .rv-columnas { grid-template-columns: 1fr; gap: 18px; }
