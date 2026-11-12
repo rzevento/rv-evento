@@ -28,7 +28,7 @@ function setup(options = {}) {
           if (updating) return { data: options.updateError ? null : {id}, error: options.updateError ? new Error('db') : null }
           if (table === 'invitations' && options.invitationError) return { data: null, error: { code: '42501', message: 'permission denied' } }
           if (table === 'invitations' && options.noInvitation) return { data: null, error: null }
-          const data = table === 'guests' ? (options.noGuest ? null : { id, event_id: 'event', full_name: '<Ana>', email: options.noEmail ? null : 'ana@example.com' }) : table === 'rsvps' ? (options.rsvpStatus ? {status: options.rsvpStatus} : null) : table === 'event_members' ? {role: options.role || 'admin'} : {id, token: 'token', status: options.alreadySent ? 'sent' : 'pending', sent_at: null}
+          const data = table === 'guests' ? (options.noGuest ? null : { id, event_id: 'event', full_name: 'fullName' in options ? options.fullName : '<Ana>', email: options.noEmail ? null : 'ana@example.com' }) : table === 'rsvps' ? (options.rsvpStatus ? {status: options.rsvpStatus} : null) : table === 'event_members' ? {role: options.role || 'admin'} : {id, token: 'token', status: options.alreadySent ? 'sent' : 'pending', sent_at: null}
           return { data, error: null }
         },
       }
@@ -55,7 +55,14 @@ test('validates authentication, input and permitted membership before sending', 
 test('sends the agreed Make fields and updates only email after acknowledgement', async () => {
   const app=setup(); assert.equal((await app.call()).status,200)
   assert.deepEqual(app.counts(),{sends:1,updates:1})
-  assert.deepEqual(app.payload(),{invitation_id:id,guest_name:'&lt;Ana&gt;',email:'ana@example.com',invitation_url:'https://evento.example.com/registro/token'})
+  assert.deepEqual(app.payload(),{invitation_id:id,guest_name:'&lt;Ana&gt;',greeting:'Estimado(a) &lt;Ana&gt;:',email:'ana@example.com',invitation_url:'https://evento.example.com/registro/token'})
+})
+test('uses a neutral greeting when the guest has no name', async () => {
+  for (const fullName of [null, '', '   ']) {
+    const app=setup({fullName}); assert.equal((await app.call()).status,200)
+    assert.equal(app.payload().greeting,'Reciba un cordial saludo.')
+    assert.equal(app.payload().guest_name,'invitado')
+  }
 })
 test('Accepted, malformed JSON, false acknowledgements, failures and timeouts never mark sent', async () => {
   for(const opts of [{reply:'Accepted'},{reply:'{}'},{reply:'{"ok":"true"}'},{reply:'{"ok":false}'},{status:500},{timeout:true}]) {

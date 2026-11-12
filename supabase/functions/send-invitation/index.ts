@@ -95,6 +95,8 @@ Deno.serve(async (request) => {
         body: JSON.stringify({
           invitation_id: invitation.id,
           guest_name: escapeHtml(guest.full_name?.trim() || 'invitado'),
+          // Saludo listo para el correo: sin nombre no se dice "Estimado(a) invitado".
+          greeting: guest.full_name?.trim() ? `Estimado(a) ${escapeHtml(guest.full_name.trim())}:` : 'Reciba un cordial saludo.',
           email: guest.email,
           invitation_url: invitationUrl,
           ...(reminder ? { reminder: true } : {}),
