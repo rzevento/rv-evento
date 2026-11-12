@@ -157,6 +157,9 @@ input::placeholder { color: #8C857A; }
 .public-shell:has(.information-page), .information-page { background: var(--rv-crema); color: var(--rv-negro); }
 .information-page .information-hero { border-color: var(--rv-borde); padding-bottom: 48px; }
 .information-page .information-hero .rv-title { font-size: clamp(56px, 8vw, 120px); max-width: none; }
+/* Opción E también aquí: el 40 mide 0.625 veces este título, que es más chico que el del registro. */
+.information-page .information-hero .rv-aniversario-numero { font-size: clamp(35px, 5vw, 75px); }
+.information-page .information-hero .rv-aniversario-texto { font-size: clamp(9px, 0.6vw, 10px); }
 .information-page .information-hero .rv-title span { color: var(--rv-oro); display: block; }
 .information-page .information-lead { max-width: 640px; font-size: 18px; line-height: 1.6; color: var(--rv-gris-texto); margin: 26px 0 30px; }
 .information-page .information-card p:not(.eyebrow) { color: var(--rv-gris-texto); }
