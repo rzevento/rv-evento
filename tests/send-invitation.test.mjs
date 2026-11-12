@@ -23,7 +23,7 @@ function setup(options = {}) {
       let updating = false
       const chain = {
         select() { return chain }, eq() { return chain },
-        update(values) { updates++; updating = true; assert.equal(values.status, 'sent'); assert.equal('whatsapp_sent_at' in values, false); return chain },
+        update(values) { updates++; updating = true; if (options.reminder) { assert.equal(typeof values.reminder_sent_at, 'string'); assert.equal('status' in values, false) } else assert.equal(values.status, 'sent'); assert.equal('whatsapp_sent_at' in values, false); return chain },
         async maybeSingle() {
           if (updating) return { data: options.updateError ? null : {id}, error: options.updateError ? new Error('db') : null }
           if (table === 'invitations' && options.invitationError) return { data: null, error: { code: '42501', message: 'permission denied' } }

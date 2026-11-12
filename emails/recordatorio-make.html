@@ -1,12 +1,11 @@
-<!-- Make: usar en un escenario de recordatorios con su propio webhook. -->
+<!-- Make: usar en un escenario de recordatorios con su propio webhook. La invitación ya trae dibujado "Regístrese aquí": toda la imagen es el enlace personal. -->
 <div style="max-width:640px;margin:0 auto;font-family:Arial,sans-serif;color:#1A1A1A;background:#FBF8F1">
   <p>Estimado(a) {{1.guest_name}}:</p>
   <p>Le recordamos la invitación de Ruvalcaba Villalobos, Consultores Fiscales, a la conferencia <strong>Reformas fiscales 2027</strong>, el jueves 3 de diciembre de 16:00 a 19:30 h en el Hotel RIU, Guadalajara, Jalisco. El registro inicia a las 15:30 h.</p>
-  <p>Aún no hemos recibido su respuesta. Le agradeceremos confirmar su asistencia desde su enlace personal:</p>
-  <p style="text-align:center;margin:28px 0"><a href="{{1.invitation_url}}" style="display:inline-block;background:#1A1A1A;color:#FFFFFF;padding:16px 28px;border-radius:4px;text-decoration:none;font-weight:bold">Regístrese aquí &rarr;</a></p>
+  <p>Aún no hemos recibido su respuesta. Le agradeceremos confirmar su asistencia desde su enlace personal: <a href="{{1.invitation_url}}" style="color:#1A1A1A;font-weight:bold">Regístrese aquí</a>.</p>
   <p>Si ya respondió recientemente, por favor omita este recordatorio. La invitación es personal e intransferible.</p>
   <p>Será un gusto contar con usted.</p>
   <p><strong>Ruvalcaba Villalobos</strong><br>Consultores Fiscales · 40 aniversario</p>
-  <p style="margin-top:32px">Le compartimos nuevamente la invitación:</p>
-  <img src="https://rv-evento.vercel.app/brand/invitacion.png" width="640" alt="Invitación a la conferencia Reformas fiscales 2027 de Ruvalcaba Villalobos, 40 aniversario. Jueves 3 de diciembre, 16:00 a 19:30 h, registro 15:30 h, Hotel RIU, Guadalajara, Jalisco." style="display:block;width:100%;max-width:640px;height:auto;border:0">
+  <p style="margin-top:32px">Le compartimos nuevamente la invitación (dé clic en ella para registrarse):</p>
+  <a href="{{1.invitation_url}}" style="display:block;text-decoration:none;border:0"><img src="https://rv-evento.vercel.app/brand/invitacion.png" width="640" alt="Invitación a la conferencia Reformas fiscales 2027 de Ruvalcaba Villalobos, 40 aniversario. Jueves 3 de diciembre, 16:00 a 19:30 h, registro 15:30 h, Hotel RIU, Guadalajara, Jalisco. Regístrese aquí." style="display:block;width:100%;max-width:640px;height:auto;border:0"></a>
 </div>
