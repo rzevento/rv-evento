@@ -124,7 +124,7 @@ Crea un escenario nuevo **RV Reformas fiscales 2027 - Enviar entrada** con `Cust
 - **Email** (GoDaddy SMTP, igual que la invitación):
   - To: `{{1.email}}`
   - Subject: `Su entrada · Reformas fiscales 2027 · Ruvalcaba Villalobos`
-  - Content: HTML de [entrada-make.html](../emails/entrada-make.html) (usa `{{1.greeting}}` y `{{1.ticket_url}}`).
+  - Content: HTML de [entrada-make.html](../emails/entrada-make.html) (usa `{{1.ticket_url}}`; el saludo es fijo: «Estimados clientes y amigos:»).
   - Attachments → Add item: File name `{{1.ticket_filename}}`, Data `{{toBinary(1.ticket_pdf; "base64")}}`. Si Make pide el tipo, `application/pdf`.
 - **Webhook response**: Status `200`, Body `{"ok":true}`, header `Content-Type` = `application/json`, sólo después del correo.
 
