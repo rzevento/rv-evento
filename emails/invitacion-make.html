@@ -1,4 +1,4 @@
-<!-- Make: escenario "Enviar correo" (webhook 1). Pegar como contenido HTML del módulo Email. La invitación NO va en el cuerpo ni hay botón: va sólo adjunta, animada en "RV Invitación Reformas Fiscales 2027.gif" (/brand/invitacion.gif) y en PDF con link al registro en "RV Invitación Reformas Fiscales 2027.pdf" (/brand/invitacion.pdf). -->
+<!-- Make: escenario "Enviar correo" (webhook 1). Pegar como contenido HTML del módulo Email. Sin adjuntos: la invitación va en el cuerpo en 3 piezas (/brand/invitacion-correo/): arriba.gif (40 con brillo), centro.jpg y abajo.gif (botón «Regístrese aquí» y TaxPro animado). Toda la invitación abre el enlace personal {{1.invitation_url}}. -->
 <!--[if mso]><table role="presentation" width="640" align="left" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
 <div style="max-width:640px;margin:0;font-family:Arial,sans-serif;color:#1A1A1A;background:#FFFFFF;padding:0 0 24px">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;border-collapse:collapse;margin:0 0 24px">
@@ -12,7 +12,11 @@
   <p><strong>Fecha:</strong> jueves 3 de diciembre de 2026.<br><strong>Horario:</strong> de 4:00 a 7:30 p.m. (registro a partir de las 3:30 p.m.)<br><strong>Lugar:</strong> Hotel RIU Guadalajara</p>
   <p>Para su registro de asistencia, les solicitamos dar clic en el recuadro “Regístrese aquí”, utilizando la misma dirección de correo electrónico en la que recibieron este mensaje, ya que la invitación es personal e intransferible.</p>
   <p>Una vez que realice su registro, le enviaremos al mismo correo el código QR para ingresar a la conferencia.</p>
-  <p>Encontrará la invitación adjunta a este correo.</p>
+  <table role="presentation" width="564" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:564px;border-collapse:collapse;margin:24px 0">
+    <tr><td style="padding:0;font-size:0;line-height:0"><a href="{{1.invitation_url}}" style="display:block;text-decoration:none;border:0"><img src="https://rv-evento.vercel.app/brand/invitacion-correo/arriba.gif" width="564" alt="Ruvalcaba Villalobos, 40 aniversario" style="display:block;width:100%;max-width:564px;height:auto;border:0"></a></td></tr>
+    <tr><td style="padding:0;font-size:0;line-height:0"><a href="{{1.invitation_url}}" style="display:block;text-decoration:none;border:0"><img src="https://rv-evento.vercel.app/brand/invitacion-correo/centro.jpg" width="564" alt="Conferencia Reformas fiscales 2027. Jueves 3 de diciembre, 16:00 a 19:30 h, registro 15:30 h, Hotel RIU, Guadalajara, Jalisco." style="display:block;width:100%;max-width:564px;height:auto;border:0"></a></td></tr>
+    <tr><td style="padding:0;font-size:0;line-height:0"><a href="{{1.invitation_url}}" style="display:block;text-decoration:none;border:0"><img src="https://rv-evento.vercel.app/brand/invitacion-correo/abajo.gif" width="564" alt="Regístrese aquí" style="display:block;width:100%;max-width:564px;height:auto;border:0"></a></td></tr>
+  </table>
   <p>Será un placer contar con su asistencia y saludarlos personalmente en el evento.</p>
   <p>Quedamos a sus órdenes para cualquier duda o aclaración.</p>
   <p><strong>Ruvalcaba Villalobos y Compañía, S.C.</strong></p>
