@@ -58,8 +58,6 @@ Si la cuenta remitente usa Gmail o Google Workspace, agrega **Gmail → Send an 
 >
 > Para su registro de asistencia, les solicitamos dar clic en el recuadro “Regístrese aquí”, utilizando la misma dirección de correo electrónico en la que recibieron este mensaje, ya que la invitación es personal e intransferible.
 >
-> Regístrese aquí: [invitation_url]
->
 > Una vez que realice su registro, le enviaremos al mismo correo el código QR para ingresar a la conferencia.
 >
 > Será un placer contar con su asistencia y saludarlos personalmente en el evento.
@@ -70,7 +68,9 @@ Si la cuenta remitente usa Gmail o Google Workspace, agrega **Gmail → Send an 
 
 Para un correo con diseño, usa como contenido HTML `emails/invitacion-make.html`; las imágenes (invitación, logo y 40 aniversario) se sirven desde `https://rv-evento.vercel.app/brand/`, así que deben estar publicadas en Vercel antes de enviar. El correo mide como máximo 640 px (también en Outlook de escritorio, con una tabla condicional `[if mso]`), para que el 40 aniversario no se vaya al otro extremo en pantallas grandes.
 
-**Invitación como adjunto (GIF animado)**: la invitación ya no va en el cuerpo del correo; el cuerpo lleva un botón «Regístrese aquí» con el enlace personal. Entre el webhook y el correo está **HTTP → Download a file** con URL `https://rv-evento.vercel.app/brand/invitacion.gif`, y en el módulo de correo Attachments → File Name `RV Invitación Reformas Fiscales 2027.gif`, Data = `Data` del módulo HTTP. El GIF reproduce las animaciones del sitio (brillo del 40 y logo de TaxPro) sobre `invitacion.png`; su primer cuadro es la invitación completa, porque Outlook de escritorio sólo muestra ese cuadro. Si cambia `invitacion.png`, hay que regenerar el GIF.
+**Invitación como adjunto (GIF animado)**: la invitación ya no va en el cuerpo del correo y el cuerpo ya no lleva botón: el registro se hace desde el recuadro «Regístrese aquí» de la invitación adjunta en PDF (ver abajo). Entre el webhook y el correo está **HTTP → Download a file** con URL `https://rv-evento.vercel.app/brand/invitacion.gif`, y en el módulo de correo Attachments → File Name `RV Invitación Reformas Fiscales 2027.gif`, Data = `Data` del módulo HTTP. El GIF reproduce las animaciones del sitio (brillo del 40 y logo de TaxPro) sobre `invitacion.png`; su primer cuadro es la invitación completa, porque Outlook de escritorio sólo muestra ese cuadro. Si cambia `invitacion.png`, hay que regenerar el GIF.
+
+**Invitación en PDF con link**: una imagen adjunta no puede llevar links, así que además del GIF va `RV Invitación Reformas Fiscales 2027.pdf` (`https://rv-evento.vercel.app/brand/invitacion.pdf`, con otro módulo **HTTP → Download a file** y un segundo adjunto en el correo). Es la misma invitación y toda la página abre `https://rv-evento.vercel.app/`, donde el invitado escribe el correo o teléfono con el que fue invitado. El PDF no se anima. Si cambia `invitacion.png`, hay que regenerar también el PDF (imagen a página completa con jsPDF y `pdf.link` sobre toda la página).
 
 Los corchetes son referencias para insertar los campos dinámicos; no dejarlos como texto literal. Envía un mensaje por invitado, con su propio enlace.
 

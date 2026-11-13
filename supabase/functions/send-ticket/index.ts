@@ -20,8 +20,8 @@ const event = {
   title: 'Reformas fiscales',
   accent: '2027',
   date: 'Jueves 3 de diciembre',
-  time: '16:00 – 19:30 h',
-  registration: 'Registro 15:30 h',
+  time: '4:00 a 7:30 pm',
+  registration: 'Registro 3:30 pm',
   venue: 'Hotel RIU',
   city: 'Guadalajara, Jalisco',
   notice: 'Invitación personal e intransferible',
@@ -93,11 +93,11 @@ async function ticketPdfBase64(name: string, accessToken: string, logo: string |
   pdf.setTextColor(26, 26, 26)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(12)
-  pdf.text(pdf.splitTextToSize('Presente este código QR en el acceso', 80), 98, 182)
+  pdf.text(pdf.splitTextToSize('Presente este código QR en el acceso del evento.', 80), 98, 182)
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(10.5)
   pdf.setTextColor(85, 85, 85)
-  pdf.text(pdf.splitTextToSize('No es necesario imprimirla; puede mostrarla desde su celular.', 80), 98, 196, { lineHeightFactor: 1.55 })
+  pdf.text(pdf.splitTextToSize('No es necesario imprimirlo, ya que puede mostrarlo directamente desde su teléfono celular.', 80), 98, 196, { lineHeightFactor: 1.55 })
   pdf.setTextColor(200, 32, 42)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(7.5)
