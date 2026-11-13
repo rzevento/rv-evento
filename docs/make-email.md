@@ -56,7 +56,7 @@ Si la cuenta remitente usa Gmail o Google Workspace, agrega **Gmail → Send an 
 > Horario: de 4:00 a 7:30 p.m. (registro a partir de las 3:30 p.m.)
 > Lugar: Hotel RIU Guadalajara
 >
-> Para su registro de asistencia, les solicitamos dar clic en el cuadro “Regístrese aquí” de la invitación, utilizando la misma dirección de correo electrónico en la que recibieron este mensaje, ya que la invitación es personal e intransferible.
+> Para su registro de asistencia, les solicitamos dar clic en el recuadro “Regístrese aquí”, utilizando la misma dirección de correo electrónico en la que recibieron este mensaje, ya que la invitación es personal e intransferible.
 >
 > Regístrese aquí: [invitation_url]
 >
@@ -70,7 +70,7 @@ Si la cuenta remitente usa Gmail o Google Workspace, agrega **Gmail → Send an 
 
 Para un correo con diseño, usa como contenido HTML `emails/invitacion-make.html`; las imágenes (invitación, logo y 40 aniversario) se sirven desde `https://rv-evento.vercel.app/brand/`, así que deben estar publicadas en Vercel antes de enviar. El correo mide como máximo 640 px (también en Outlook de escritorio, con una tabla condicional `[if mso]`), para que el 40 aniversario no se vaya al otro extremo en pantallas grandes.
 
-**Invitación como adjunto**: entre el webhook y el correo agrega **HTTP → Get a file** con URL `https://rv-evento.vercel.app/brand/invitacion.png`. En el módulo de correo, Attachments → Add item: File Name `RV Invitación Reformas Fiscales 2027.png`, Data = el campo `Data` del módulo HTTP. Así la invitación se ve dentro del correo y además va anexa.
+**Invitación como adjunto (GIF animado)**: la invitación ya no va en el cuerpo del correo; el cuerpo lleva un botón «Regístrese aquí» con el enlace personal. Entre el webhook y el correo está **HTTP → Download a file** con URL `https://rv-evento.vercel.app/brand/invitacion.gif`, y en el módulo de correo Attachments → File Name `RV Invitación Reformas Fiscales 2027.gif`, Data = `Data` del módulo HTTP. El GIF reproduce las animaciones del sitio (brillo del 40 y logo de TaxPro) sobre `invitacion.png`; su primer cuadro es la invitación completa, porque Outlook de escritorio sólo muestra ese cuadro. Si cambia `invitacion.png`, hay que regenerar el GIF.
 
 Los corchetes son referencias para insertar los campos dinámicos; no dejarlos como texto literal. Envía un mensaje por invitado, con su propio enlace.
 
