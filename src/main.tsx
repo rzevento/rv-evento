@@ -43,7 +43,7 @@ async function imageDataUrl(path: string) {
 async function downloadGuestPass(name: string, accessToken: string) {
   const qrDataUrl = await QRCode.toDataURL(accessToken, { errorCorrectionLevel: 'H', width: 900, margin: 4, color: { dark: '#1a1a1a', light: '#ffffff' } })
   const logo = await imageDataUrl('/brand/rv-logo.png').catch(() => null)
-  const pdf = new jsPDF({ unit: 'mm', format: 'a4' })
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
   const pageWidth = pdf.internal.pageSize.getWidth()
   pdf.setFillColor(251, 248, 241)
   pdf.rect(0, 0, pageWidth, 297, 'F')
@@ -81,21 +81,23 @@ async function downloadGuestPass(name: string, accessToken: string) {
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(12)
   pdf.setTextColor(51, 51, 51)
-  pdf.text(`${event.date} · ${event.time} · ${event.registration}`, 24, 131)
-  pdf.text(`${event.venue}, ${event.city}`, 24, 139)
-  pdf.addImage(qrDataUrl, 'PNG', 24, 154, 62, 62)
+  pdf.text(event.date, 24, 129)
+  pdf.text(event.time, 24, 136.5)
+  pdf.text(event.registration, 24, 144)
+  pdf.text(`${event.venue}, ${event.city}`, 24, 151.5)
+  pdf.addImage(qrDataUrl, 'PNG', 24, 164, 62, 62)
   pdf.setTextColor(26, 26, 26)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(12)
-  pdf.text(pdf.splitTextToSize('Presente este código QR en el acceso', 80), 98, 172)
+  pdf.text(pdf.splitTextToSize('Presente este código QR en el acceso', 80), 98, 182)
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(10.5)
   pdf.setTextColor(85, 85, 85)
-  pdf.text(pdf.splitTextToSize('No es necesario imprimirla; puede mostrarla desde su celular. También la recibirá por correo.', 80), 98, 186, { lineHeightFactor: 1.55 })
+  pdf.text(pdf.splitTextToSize('No es necesario imprimirla; puede mostrarla desde su celular. También la recibirá por correo.', 80), 98, 196, { lineHeightFactor: 1.55 })
   pdf.setTextColor(200, 32, 42)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(7.5)
-  pdf.text(event.notice.toUpperCase(), 98, 210, { charSpace: 0.5 })
+  pdf.text(event.notice.toUpperCase(), 98, 220, { charSpace: 0.5 })
   pdf.save('entrada-reformas-fiscales-2027.pdf')
 }
 
@@ -182,7 +184,7 @@ function MiembroTaxPro() {
 }
 
 function PublicShell() {
-  return <div className="public-shell"><div className="rv-franja-superior" aria-hidden="true" /><header className="public-nav"><Link to="/" className="brand" aria-label="Ruvalcaba Villalobos · Inicio"><Logo /></Link><nav className="public-menu" aria-label="Navegación principal"><Link to="/" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}>Registro</Link><Link to="/informacion" activeProps={{ className: 'active' }}>Sobre el evento</Link><Link to="/admin" className="quiet-link">Acceso organizador <ArrowRight size={15} /></Link></nav></header><Outlet /><footer className="rv-footer"><MiembroTaxPro /></footer></div>
+  return <div className="public-shell"><div className="rv-franja-superior" aria-hidden="true" /><header className="public-nav"><Link to="/" className="brand" aria-label="Ruvalcaba Villalobos · Inicio"><Logo /></Link><nav className="public-menu" aria-label="Navegación principal"><Link to="/" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}>Registro</Link><Link to="/admin" className="quiet-link">Acceso organizador <ArrowRight size={15} /></Link></nav></header><Outlet /><footer className="rv-footer"><MiembroTaxPro /></footer></div>
 }
 
 function RegistrationPage({ token = 'demo' }: { token?: string }) {
@@ -224,7 +226,7 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
     return () => { active = false }
   }, [directToken, loadAttempt])
   const update = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [key]: e.target.value })
-  if (sent) return <main className="register-page success-page"><div className="success-card"><div className="success-icon">{cancelled ? <span>×</span> : <Check size={25} />}</div><p className="eyebrow">{cancelled ? 'Asistencia cancelada' : alreadyRegistered ? 'Asistencia confirmada' : 'Registro recibido'}</p><h1>{cancelled ? 'Su cancelación quedó registrada.' : alreadyRegistered ? 'Su asistencia ya está confirmada.' : `Gracias, ${form.name.split(' ')[0] || 'por confirmar'}.`}</h1><p>{cancelled ? 'Si cambia de opinión, puede volver a confirmar desde este mismo enlace.' : alreadyRegistered ? 'Su registro ya fue recibido y su lugar está reservado. No necesita registrarse otra vez. Puede descargar su entrada o cancelar su asistencia desde aquí.' : `Su lugar está reservado. Le esperamos el ${event.dateShort} en ${event.venue}, ${event.city}.`}</p>{!cancelled && <><div className="success-details"><CalendarDays size={18} /><span>{event.date}<small>{event.time} · {event.registration}</small><small>{event.venue}, {event.city}</small></span></div><p className="pass-note"><ShieldCheck size={15} /> {form.email ? 'También recibirá su entrada por correo.' : 'Si registró un correo, también recibirá su entrada por ahí.'} No es necesario imprimirla; puede mostrarla desde su celular.</p></>}<div className="success-actions">{!cancelled && <><button className="button button-orange" onClick={() => void downloadPass()}><Download size={16} /> Descargar entrada</button><Link className="outline-button" to="/informacion">Más sobre el evento <ArrowRight size={15} /></Link></>}{!cancelled && <button className="cancel-link" disabled={cancelling} onClick={() => void cancelAttendance()}>{cancelling ? 'Cancelando…' : 'Cancelar mi asistencia'}</button>}</div>{error && <p className="form-error" role="alert">{error}</p>}{cancelled && <button className="outline-button" onClick={() => { setSent(false); setCancelled(false); setAlreadyRegistered(false); setError('') }}>Volver a confirmar asistencia</button>}</div></main>
+  if (sent) return <main className="register-page success-page"><div className="success-card"><div className="success-icon">{cancelled ? <span>×</span> : <Check size={25} />}</div><p className="eyebrow">{cancelled ? 'Asistencia cancelada' : alreadyRegistered ? 'Asistencia confirmada' : 'Registro recibido'}</p><h1>{cancelled ? 'Su cancelación quedó registrada.' : alreadyRegistered ? 'Su asistencia ya está confirmada.' : `Gracias, ${form.name.split(' ')[0] || 'por confirmar'}.`}</h1><p>{cancelled ? 'Si cambia de opinión, puede volver a confirmar desde este mismo enlace.' : alreadyRegistered ? 'Su registro ya fue recibido y su lugar está reservado. No necesita registrarse otra vez. Puede descargar su entrada o cancelar su asistencia desde aquí.' : `Su lugar está reservado. Le esperamos el ${event.dateShort} en ${event.venue}, ${event.city}.`}</p>{!cancelled && <><div className="success-details"><CalendarDays size={18} /><span>{event.date}<small>{event.time}</small><small>{event.registration}</small><small>{event.venue}, {event.city}</small></span></div><p className="pass-note"><ShieldCheck size={15} /> {form.email ? 'También recibirá su entrada por correo.' : 'Si registró un correo, también recibirá su entrada por ahí.'} No es necesario imprimirla; puede mostrarla desde su celular.</p></>}<div className="success-actions">{!cancelled && <><button className="button button-orange" onClick={() => void downloadPass()}><Download size={16} /> Descargar entrada</button></>}{!cancelled && <button className="cancel-link" disabled={cancelling} onClick={() => void cancelAttendance()}>{cancelling ? 'Cancelando…' : 'Cancelar mi asistencia'}</button>}</div>{error && <p className="form-error" role="alert">{error}</p>}{cancelled && <button className="outline-button" onClick={() => { setSent(false); setCancelled(false); setAlreadyRegistered(false); setError('') }}>Volver a confirmar asistencia</button>}</div></main>
   async function cancelAttendance() {
     setCancelling(true)
     setError('')
@@ -295,23 +297,12 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
   async function downloadPass() {
     await downloadGuestPass(form.name, resolvedToken || token)
   }
-  return <main className="register-page"><section className="register-intro"><div className="rv-intro-top"><p className="eyebrow">{event.eyebrow}</p><Aniversario /></div><h1 className="rv-title">{event.title}</h1><img className="rv-year" src="/brand/2027-ciudad.png" alt={event.accent} width={946} height={334} /><hr className="rv-divisor" /><div className="rv-columnas"><p className="rv-dato">{event.date}</p><p><span className="rv-dato">{event.time}</span><span className="rv-dato-secundario">{event.registration}</span></p><p><span className="rv-dato">{event.venue}</span><span className="rv-dato-secundario">{event.city}</span></p></div><p className="rv-aviso">{event.notice}</p></section><section className="register-card"><div className="card-top"><p className="eyebrow">Registro</p><h2>Confirme su asistencia</h2><div className="invitation-notices"><p><ShieldCheck size={15} /> {directToken ? 'Revise sus datos y complete lo que falte.' : 'Ingrese el correo o teléfono con el que fue invitado.'}</p><p><LockKeyhole size={15} /> Esta invitación es personal e intransferible.</p></div><p>Complete sus datos para reservar su lugar.</p></div><form onSubmit={handleSubmit} aria-busy={prefillStatus === 'loading'}>{prefillStatus === 'loading' && <p role="status">Cargando sus datos…</p>}<label>Nombre completo<input autoComplete="name" disabled={prefillStatus !== 'ready' || submitting} value={form.name} onChange={update('name')} placeholder="Su nombre" /></label><label>Correo electrónico<input type="email" autoComplete="email" disabled={prefillStatus !== 'ready' || submitting} value={form.email} onChange={update('email')} placeholder="nombre@empresa.com" /></label><label>Teléfono<input type="tel" autoComplete="tel" disabled={prefillStatus !== 'ready' || submitting} value={form.phone} onChange={update('phone')} placeholder="México: 10 dígitos · Otros: +código de país" /></label><label>Empresa<input autoComplete="organization" disabled={prefillStatus !== 'ready' || submitting} value={form.company} onChange={update('company')} placeholder="Nombre de la empresa" /></label>{error && <p className="form-error" role="alert">{error}</p>}{prefillStatus === 'error' && <button className="outline-button" type="button" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Volver a cargar</button>}<button className="button button-orange" type="submit" disabled={submitting || prefillStatus !== 'ready'}>{submitting ? 'Guardando…' : 'Confirmar registro'} {!submitting && <ArrowRight size={17} />}</button></form><p className="privacy-note"><ShieldCheck size={15} /> Sus datos se utilizarán únicamente para la organización del evento.</p></section></main>
+  return <main className="register-page"><section className="register-intro"><div className="rv-intro-top"><p className="eyebrow">{event.eyebrow}</p><Aniversario /></div><h1 className="rv-title">{event.title}</h1><img className="rv-year" src="/brand/2027-ciudad.png" alt={event.accent} width={946} height={334} /><hr className="rv-divisor" /><div className="rv-columnas"><p className="rv-dato">{event.date}</p><p><span className="rv-dato">{event.time}</span><span className="rv-dato-secundario">{event.registration}</span></p><p><span className="rv-dato">{event.venue}</span><span className="rv-dato-secundario">{event.city}</span></p></div><p className="rv-aviso">{event.notice}</p></section><section className="register-card"><div className="card-top"><p className="eyebrow">Registro</p><h2>Confirme su asistencia</h2><div className="invitation-notices">{!directToken && <p><ShieldCheck size={15} /> Ingrese el correo o teléfono con el que fue invitado.</p>}<p><LockKeyhole size={15} /> Esta invitación es personal e intransferible.</p></div><p>Complete sus datos para reservar su lugar.</p></div><form onSubmit={handleSubmit} aria-busy={prefillStatus === 'loading'}>{prefillStatus === 'loading' && <p role="status">Cargando sus datos…</p>}<label>Nombre completo<input autoComplete="name" disabled={prefillStatus !== 'ready' || submitting} value={form.name} onChange={update('name')} placeholder="Su nombre" /></label><label>Correo electrónico<input type="email" autoComplete="email" disabled={prefillStatus !== 'ready' || submitting} value={form.email} onChange={update('email')} placeholder="nombre@empresa.com" /></label><label>Teléfono<input type="tel" autoComplete="tel" disabled={prefillStatus !== 'ready' || submitting} value={form.phone} onChange={update('phone')} placeholder="México: 10 dígitos · Otros: +código de país" /></label><label>Empresa<input autoComplete="organization" disabled={prefillStatus !== 'ready' || submitting} value={form.company} onChange={update('company')} placeholder="Nombre de la empresa" /></label>{error && <p className="form-error" role="alert">{error}</p>}{prefillStatus === 'error' && <button className="outline-button" type="button" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Volver a cargar</button>}<button className="button button-orange" type="submit" disabled={submitting || prefillStatus !== 'ready'}>{submitting ? 'Guardando…' : 'Confirmar registro'} {!submitting && <ArrowRight size={17} />}</button></form><p className="privacy-note"><ShieldCheck size={15} /> Sus datos se utilizarán únicamente para la organización del evento.</p></section></main>
 }
 
 function TokenRegistrationPage() {
   const { token } = useParams({ from: '/registro/$token' })
   return <RegistrationPage key={token} token={token} />
-}
-
-function InformationPage() {
-  return <main className="information-page">
-    <section className="information-hero"><div><div className="rv-intro-top"><p className="eyebrow">{event.eyebrow}</p><Aniversario /></div><h1 className="rv-title">{event.title} <span>{event.accent}</span></h1><p className="information-lead">{event.host}, {event.hostDetail}, le invita a conocer los cambios fiscales que vienen para 2027 en una conferencia con la que también celebramos 40 años acompañando a nuestros clientes.</p><Link className="button button-orange" to="/">Regístrese aquí <ArrowRight size={17} /></Link></div></section>
-    <section className="information-grid">
-      <article className="information-card information-card-dark"><p className="eyebrow">La conferencia</p><h2>{event.title} {event.accent}</h2><p>Una tarde para revisar, con nuestros especialistas, las reformas fiscales que entrarán en vigor en 2027 y lo que significan para usted y su empresa.</p><div className="rv-columnas information-columns"><p className="rv-dato">{event.date}</p><p><span className="rv-dato">{event.time}</span><span className="rv-dato-secundario">{event.registration}</span></p><p><span className="rv-dato">{event.venue}</span><span className="rv-dato-secundario">{event.city}</span></p></div></article>
-      <article className="information-card speaker-card"><p className="eyebrow">El anfitrión</p><Logo /><h2>{event.host}</h2><div className="speaker-bio"><p>{event.hostDetail}. Este año celebramos nuestro 40 aniversario y queremos hacerlo con nuestros clientes y amigos.</p><p>Somos miembros de TaxPro.</p></div></article>
-    </section>
-    <section className="information-footer"><div><p className="eyebrow">{event.notice}</p><h2>Reserve su lugar en la conferencia.</h2></div><Link className="outline-button" to="/">Ir al registro <ArrowRight size={16} /></Link></section>
-  </main>
 }
 
 function AdminLayout() {
@@ -581,7 +572,7 @@ function GuestPassModal({ guest, token, onClose }: { guest: Guest; token: string
     })
     return () => { current = false }
   }, [token])
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="modal-card guest-pass-modal" onMouseDown={e => e.stopPropagation()}><button className="modal-close" onClick={onClose} aria-label="Cerrar entrada">×</button><p className="eyebrow orange">Entrada personal</p><h2>{guest.name}</h2><p className="muted">{event.date}<br />{event.time} · {event.registration}<br />{event.venue} · {event.city}</p><div className="pass-qr-preview">{qrDataUrl ? <img src={qrDataUrl} alt={`Código QR de ${guest.name}`} /> : <span>Generando QR…</span>}</div><p className="pass-preview-note">Esta entrada es personal e intransferible. Puede mostrarse desde el celular; no necesita imprimirse.</p><button className="button button-orange" disabled={!qrDataUrl} onClick={() => void downloadGuestPass(guest.name, token)}><Download size={16} /> Descargar PDF</button></div></div>
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="modal-card guest-pass-modal" onMouseDown={e => e.stopPropagation()}><button className="modal-close" onClick={onClose} aria-label="Cerrar entrada">×</button><p className="eyebrow orange">Entrada personal</p><h2>{guest.name}</h2><p className="muted">{event.date}<br />{event.time}<br />{event.registration}<br />{event.venue} · {event.city}</p><div className="pass-qr-preview">{qrDataUrl ? <img src={qrDataUrl} alt={`Código QR de ${guest.name}`} /> : <span>Generando QR…</span>}</div><p className="pass-preview-note">Esta entrada es personal e intransferible. Puede mostrarse desde el celular; no necesita imprimirse.</p><button className="button button-orange" disabled={!qrDataUrl} onClick={() => void downloadGuestPass(guest.name, token)}><Download size={16} /> Descargar PDF</button></div></div>
 }
 
 function GuestsPage() {
@@ -983,13 +974,12 @@ function AdminConfigurationPage() {
 const rootRoute = createRootRoute({ component: PublicShell })
 const homeRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: RegistrationPage })
 const tokenRoute = createRoute({ getParentRoute: () => rootRoute, path: '/registro/$token', component: TokenRegistrationPage })
-const informationRoute = createRoute({ getParentRoute: () => rootRoute, path: '/informacion', component: InformationPage })
 const adminRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin', component: AdminLayout })
 const summaryRoute = createRoute({ getParentRoute: () => adminRoute, path: '/', component: SummaryPage })
 const guestsRoute = createRoute({ getParentRoute: () => adminRoute, path: '/invitados', component: GuestsPage })
 const checkinRoute = createRoute({ getParentRoute: () => adminRoute, path: '/check-in', component: CheckInPage })
 const configRoute = createRoute({ getParentRoute: () => adminRoute, path: '/configuracion', component: ConfigurationPage })
-const routeTree = rootRoute.addChildren([homeRoute, tokenRoute, informationRoute, adminRoute.addChildren([summaryRoute, guestsRoute, checkinRoute, configRoute])])
+const routeTree = rootRoute.addChildren([homeRoute, tokenRoute, adminRoute.addChildren([summaryRoute, guestsRoute, checkinRoute, configRoute])])
 const router = createRouter({ routeTree })
 
 declare module '@tanstack/react-router' { interface Register { router: typeof router } }

@@ -1,24 +1,40 @@
-<!-- Make: escenario "Enviar entrada" (webhook 1). Pegar como contenido HTML del módulo Email; la entrada en PDF va como adjunto (ticket_filename / ticket_pdf). -->
+<!-- Make: escenario "Enviar entrada" (webhook 1). Pegar como contenido HTML del módulo Email. La entrada se ve abierta en el correo (QR desde {{1.ticket_qr_url}}) y además va anexa en PDF (ticket_filename / ticket_pdf). -->
+<!--[if mso]><table role="presentation" width="640" align="left" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
 <div style="max-width:640px;margin:0;font-family:Arial,sans-serif;color:#1A1A1A;background:#FFFFFF;padding:0 0 24px">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 24px">
+  <p>Esta es tu entrada del evento.</p>
+  <p>No es necesario imprimir tu entrada, con presentar esta versión digital es suficiente.</p>
+  <p>Si tienes alguna pregunta, contacta al anfitrión del evento.</p>
+  <p>¡Esperamos verte pronto en el evento!</p>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;border-collapse:collapse;margin:24px 0 0;background:#FBF8F1;border-top:4px solid #9C7B30">
     <tr>
-      <td align="left" valign="middle" style="padding:8px 0 0"><img src="https://rv-evento.vercel.app/brand/rv-logo.png" width="68" height="96" alt="Ruvalcaba Villalobos, Consultores Fiscales" style="display:block;border:0;width:68px;height:96px"></td>
-      <td align="right" valign="middle" style="padding:8px 0 0"><img src="https://rv-evento.vercel.app/brand/aniversario-40.png" width="71" height="63" alt="40 aniversario" style="display:block;border:0;width:71px;height:63px"></td>
+      <td style="padding:24px 28px 0">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">
+          <tr>
+            <td align="left" valign="middle"><img src="https://rv-evento.vercel.app/brand/rv-logo.png" width="57" height="80" alt="Ruvalcaba Villalobos y Compañía, S.C." style="display:block;border:0;width:57px;height:80px"></td>
+            <td align="right" valign="middle"><img src="https://rv-evento.vercel.app/brand/aniversario-40.png" width="71" height="63" alt="40 aniversario" style="display:block;border:0;width:71px;height:63px"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:20px 28px 0">
+        <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:28px;font-weight:bold;line-height:1.1;color:#1A1A1A">Reformas fiscales 2027</p>
+        <p style="margin:14px 0 0;border-top:2px solid #9C7B30;font-size:0;line-height:0">&nbsp;</p>
+        <p style="margin:16px 0 4px;font-size:11px;font-weight:bold;letter-spacing:2px;color:#9C7B30">ENTRADA PERSONAL</p>
+        <p style="margin:0 0 12px;font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:bold;color:#1A1A1A">{{1.guest_name}}</p>
+        <p style="margin:0;font-size:15px;line-height:1.6;color:#333333">Jueves 3 de diciembre<br>16:00 – 19:30 h<br>Registro 15:30 h<br>Hotel RIU, Guadalajara, Jalisco</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:20px 28px 28px">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">
+          <tr>
+            <td valign="top" style="padding:0 20px 0 0"><img src="{{1.ticket_qr_url}}" width="200" height="200" alt="Código QR de su entrada" style="display:block;border:0;width:200px;height:200px"></td>
+            <td valign="middle" style="font-size:13px;line-height:1.5;color:#555555"><strong style="color:#1A1A1A;font-size:14px">Presente este código QR en el acceso</strong><br><br><span style="font-size:11px;font-weight:bold;letter-spacing:1px;color:#C8202A">INVITACIÓN PERSONAL E INTRANSFERIBLE</span></td>
+          </tr>
+        </table>
+      </td>
     </tr>
   </table>
-  <p>Estimados clientes y amigos:</p>
-  <p>Gracias por confirmar su asistencia a nuestra conferencia de <strong>Reformas Fiscales 2027</strong>. Su lugar está reservado.</p>
-  <p style="margin:20px 0;padding:16px;border-left:3px solid #9C7B30;background:#FBF8F1">
-    <strong>Fecha:</strong> jueves 3 de diciembre de 2026.<br>
-    <strong>Horario:</strong> de 4:00 a 7:30 p.m. (registro a partir de las 3:30 p.m.)<br>
-    <strong>Lugar:</strong> Hotel RIU Guadalajara
-  </p>
-  <p>Adjuntamos su <strong>entrada personal</strong> en PDF con el código QR para ingresar a la conferencia. Preséntelo en el acceso; no es necesario imprimirlo, puede mostrarlo desde su celular.</p>
-  <p style="margin:28px 0">
-    <a href="{{1.ticket_url}}" style="display:inline-block;background:#9C7B30;color:#FFFFFF;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:4px">Ver o descargar mi entrada</a>
-  </p>
-  <p style="font-size:13px;color:#555555">Desde ese mismo enlace puede volver a descargar su entrada o cancelar su asistencia si ya no podrá acompañarnos. La invitación es personal e intransferible.</p>
-  <p>Será un placer contar con su asistencia y saludarlos personalmente en el evento.</p>
-  <p>Quedamos a sus órdenes para cualquier duda o aclaración.</p>
-  <p><strong>Ruvalcaba Villalobos</strong><br>Consultores Fiscales · 40 aniversario</p>
 </div>
+<!--[if mso]></td></tr></table><![endif]-->

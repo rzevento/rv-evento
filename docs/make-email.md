@@ -44,7 +44,7 @@ Si la cuenta remitente usa Gmail o Google Workspace, agrega **Gmail → Send an 
 | Campo | Configuración |
 |---|---|
 | To | Seleccionar `email` del webhook |
-| Subject | `Invitación · Reformas fiscales 2027 · Ruvalcaba Villalobos` |
+| Subject | `RV Invitación Reformas Fiscales 2027` |
 | Body type | `Collection of contents` |
 | Body contents | Texto de abajo, insertando nombre y enlace desde el selector de Make |
 
@@ -66,9 +66,11 @@ Si la cuenta remitente usa Gmail o Google Workspace, agrega **Gmail → Send an 
 >
 > Quedamos a sus órdenes para cualquier duda o aclaración.
 >
-> Ruvalcaba Villalobos · Consultores Fiscales · 40 aniversario
+> Ruvalcaba Villalobos y Compañía, S.C.
 
-Para un correo con diseño, usa como contenido HTML `emails/invitacion-make.html`; las imágenes (invitación, logo y 40 aniversario) se sirven desde `https://rv-evento.vercel.app/brand/`, así que deben estar publicadas en Vercel antes de enviar.
+Para un correo con diseño, usa como contenido HTML `emails/invitacion-make.html`; las imágenes (invitación, logo y 40 aniversario) se sirven desde `https://rv-evento.vercel.app/brand/`, así que deben estar publicadas en Vercel antes de enviar. El correo mide como máximo 640 px (también en Outlook de escritorio, con una tabla condicional `[if mso]`), para que el 40 aniversario no se vaya al otro extremo en pantallas grandes.
+
+**Invitación como adjunto**: entre el webhook y el correo agrega **HTTP → Get a file** con URL `https://rv-evento.vercel.app/brand/invitacion.png`. En el módulo de correo, Attachments → Add item: File Name `RV Invitación Reformas Fiscales 2027.png`, Data = el campo `Data` del módulo HTTP. Así la invitación se ve dentro del correo y además va anexa.
 
 Los corchetes son referencias para insertar los campos dinámicos; no dejarlos como texto literal. Envía un mensaje por invitado, con su propio enlace.
 
@@ -120,12 +122,12 @@ Pega en el SQL Editor de Supabase el contenido de `supabase/migrations/202611121
 
 Crea un escenario nuevo **RV Reformas fiscales 2027 - Enviar entrada** con `Custom webhook → Send an email → Webhook response`:
 
-- **Webhook**: nombre `rv_enviar_entrada`, con API Key authentication (puede ser la misma clave `MAKE_WEBHOOK_API_KEY`). Campos: `invitation_id`, `guest_name`, `greeting`, `email`, `ticket_url`, `ticket_filename`, `ticket_pdf` (este último es el PDF en base64).
-- **Email** (GoDaddy SMTP, igual que la invitación):
+- **Webhook**: nombre `rv_enviar_entrada`, con API Key authentication (puede ser la misma clave `MAKE_WEBHOOK_API_KEY`). Campos: `invitation_id`, `guest_name`, `greeting`, `email`, `ticket_url`, `ticket_qr_url`, `ticket_filename`, `ticket_pdf` (este último es el PDF en base64).
+- **Email**: Microsoft 365 Email (Outlook) → Send an Email, con la misma conexión que la invitación (el escenario se creó clonando el de la invitación):
   - To: `{{1.email}}`
   - Subject: `Su entrada · Reformas fiscales 2027 · Ruvalcaba Villalobos`
-  - Content: HTML de [entrada-make.html](../emails/entrada-make.html) (usa `{{1.ticket_url}}`; el saludo es fijo: «Estimados clientes y amigos:»).
-  - Attachments → Add item: File name `{{1.ticket_filename}}`, Data `{{toBinary(1.ticket_pdf; "base64")}}`. Si Make pide el tipo, `application/pdf`.
+  - Content: HTML de [entrada-make.html](../emails/entrada-make.html): el texto corto y la entrada abierta dentro del correo (usa `{{1.guest_name}}` y `{{1.ticket_qr_url}}`, la imagen del QR que sirve `send-ticket` con `GET ?qr=TOKEN` sólo si la asistencia está confirmada).
+  - Attachments → Add item: File Name `{{1.ticket_filename}}`, Data `{{toBinary(1.ticket_pdf; base64)}}` (máximo 3 MB por archivo; la entrada pesa mucho menos).
 - **Webhook response**: Status `200`, Body `{"ok":true}`, header `Content-Type` = `application/json`, sólo después del correo.
 
 ### 3. Función de Supabase

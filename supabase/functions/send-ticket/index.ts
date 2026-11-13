@@ -3,13 +3,14 @@ import { jsPDF } from 'npm:jspdf@4.2.1'
 import QRCode from 'npm:qrcode@1.5.4'
 
 // Envía por correo (vía Make) la entrada en PDF de un invitado que ya confirmó.
+// Con GET ?qr=TOKEN devuelve la imagen PNG del QR para mostrar la entrada dentro del correo.
 // Es pública: el token personal de la invitación es la credencial. Sólo se envía
 // al correo registrado del invitado, sólo si su RSVP está confirmado y una sola vez.
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-rv-impersonation',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 const json = (body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
@@ -46,7 +47,7 @@ async function logoDataUrl(siteOrigin: string) {
 // Mismo diseño que la entrada que se descarga desde el sitio (downloadGuestPass en src/main.tsx).
 async function ticketPdfBase64(name: string, accessToken: string, logo: string | null) {
   const qrDataUrl = await QRCode.toDataURL(accessToken, { errorCorrectionLevel: 'H', width: 900, margin: 4, color: { dark: '#1a1a1a', light: '#ffffff' } })
-  const pdf = new jsPDF({ unit: 'mm', format: 'a4' })
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
   const pageWidth = pdf.internal.pageSize.getWidth()
   pdf.setFillColor(251, 248, 241)
   pdf.rect(0, 0, pageWidth, 297, 'F')
@@ -84,26 +85,48 @@ async function ticketPdfBase64(name: string, accessToken: string, logo: string |
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(12)
   pdf.setTextColor(51, 51, 51)
-  pdf.text(`${event.date} · ${event.time} · ${event.registration}`, 24, 131)
-  pdf.text(`${event.venue}, ${event.city}`, 24, 139)
-  pdf.addImage(qrDataUrl, 'PNG', 24, 154, 62, 62)
+  pdf.text(event.date, 24, 129)
+  pdf.text(event.time, 24, 136.5)
+  pdf.text(event.registration, 24, 144)
+  pdf.text(`${event.venue}, ${event.city}`, 24, 151.5)
+  pdf.addImage(qrDataUrl, 'PNG', 24, 164, 62, 62)
   pdf.setTextColor(26, 26, 26)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(12)
-  pdf.text(pdf.splitTextToSize('Presente este código QR en el acceso', 80), 98, 172)
+  pdf.text(pdf.splitTextToSize('Presente este código QR en el acceso', 80), 98, 182)
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(10.5)
   pdf.setTextColor(85, 85, 85)
-  pdf.text(pdf.splitTextToSize('No es necesario imprimirla; puede mostrarla desde su celular.', 80), 98, 186, { lineHeightFactor: 1.55 })
+  pdf.text(pdf.splitTextToSize('No es necesario imprimirla; puede mostrarla desde su celular.', 80), 98, 196, { lineHeightFactor: 1.55 })
   pdf.setTextColor(200, 32, 42)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(7.5)
-  pdf.text(event.notice.toUpperCase(), 98, 210, { charSpace: 0.5 })
+  pdf.text(event.notice.toUpperCase(), 98, 220, { charSpace: 0.5 })
   return toBase64(new Uint8Array(pdf.output('arraybuffer')))
+}
+
+// Sólo para invitaciones existentes con asistencia confirmada; el QR contiene el mismo token del enlace del correo.
+async function qrImage(token: string) {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const secretKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}').default
+  const notFound = () => new Response('No encontrado', { status: 404, headers: cors })
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(token)) return notFound()
+  if (!supabaseUrl || !secretKey) return new Response('Falta la configuración de Supabase', { status: 500, headers: cors })
+  const service = createClient(supabaseUrl, secretKey, { auth: { persistSession: false, autoRefreshToken: false } })
+  const { data: invitation } = await service.from('invitations').select('event_id, guest_id').eq('token', token).maybeSingle()
+  if (!invitation) return notFound()
+  const { data: rsvp } = await service.from('rsvps').select('status').eq('event_id', invitation.event_id).eq('guest_id', invitation.guest_id).maybeSingle()
+  if (rsvp?.status !== 'confirmed') return notFound()
+  const dataUrl: string = await QRCode.toDataURL(token, { errorCorrectionLevel: 'H', width: 600, margin: 4, color: { dark: '#1a1a1a', light: '#ffffff' } })
+  const bytes = Uint8Array.from(atob(dataUrl.split(',')[1]), char => char.charCodeAt(0))
+  return new Response(bytes, { headers: { ...cors, 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' } })
 }
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: cors })
+  if (request.method === 'GET') {
+    try { return await qrImage(new URL(request.url).searchParams.get('qr') || '') } catch { return new Response('Error', { status: 500, headers: cors }) }
+  }
   if (request.method !== 'POST') return json({ error: 'Método no permitido' }, 405)
 
   try {
@@ -139,6 +162,7 @@ Deno.serve(async (request) => {
     const release = () => service.rpc('release_ticket_email', { target_invitation_id: claim.invitation_id }).then(() => undefined, () => undefined)
     const name = typeof claim.guest_name === 'string' ? claim.guest_name.trim() : ''
     const ticketUrl = new URL(`/registro/${encodeURIComponent(token)}`, siteUrl.origin).href
+    const ticketQrUrl = new URL(`/functions/v1/send-ticket?qr=${encodeURIComponent(token)}`, supabaseUrl).href
 
     let ticketPdf: string
     try {
@@ -161,6 +185,7 @@ Deno.serve(async (request) => {
           greeting: name ? `Estimado(a) ${escapeHtml(name)}:` : 'Reciba un cordial saludo.',
           email: claim.email,
           ticket_url: ticketUrl,
+          ticket_qr_url: ticketQrUrl,
           ticket_filename: ticketFilename,
           ticket_pdf: ticketPdf,
         }),

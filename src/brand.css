@@ -107,6 +107,20 @@ input::placeholder { color: #8C857A; }
 .success-details small + small { margin-top: 2px; }
 .success-actions .outline-button { color: var(--rv-negro); }
 .cancel-link { color: var(--rv-rojo); }
+/* En la confirmación el logo de TaxPro va más chico y pegado a la tarjeta, para verse sin bajar. */
+.public-shell:has(.success-page) .public-nav { padding-top: 14px; padding-bottom: 10px; }
+.public-shell:has(.success-page) .public-nav .brand-logo { height: 100px; width: auto; }
+.success-page { min-height: 0; padding-top: 8px; padding-bottom: 8px; }
+.success-card { padding: 30px 56px 26px; }
+.success-icon { width: 46px; height: 46px; margin-bottom: 14px; }
+.success-card .eyebrow { margin-bottom: 12px; }
+.success-card h1 { margin-bottom: 12px; }
+.success-details { margin: 18px auto; }
+.success-card .pass-note { margin: 0 auto 14px; }
+.success-actions { gap: 10px; }
+.public-shell:has(.success-page) .rv-footer { padding: 0 24px 28px; }
+.public-shell:has(.success-page) .rv-miembro { font-size: 11px; letter-spacing: 2px; }
+.public-shell:has(.success-page) .tp-logo { transform: scale(.55); margin: -18px -73px -18px 0; }
 
 /* ---------- 40 aniversario con brillo ---------- */
 .rv-aniversario { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; flex: none; }
@@ -152,29 +166,6 @@ input::placeholder { color: #8C857A; }
 
 /* El pie y la franja son solo del sitio público. */
 .public-shell:has(.admin-shell) .rv-footer, .public-shell:has(.auth-page) .rv-footer { display: none; }
-
-/* ---------- Sobre el evento ---------- */
-.public-shell:has(.information-page), .information-page { background: var(--rv-crema); color: var(--rv-negro); }
-.information-page .information-hero { border-color: var(--rv-borde); padding-bottom: 48px; }
-.information-page .information-hero .rv-title { font-size: clamp(56px, 8vw, 120px); max-width: none; }
-/* Opción E también aquí: el 40 mide 0.625 veces este título, que es más chico que el del registro. */
-.information-page .information-hero .rv-aniversario-numero { font-size: clamp(35px, 5vw, 75px); }
-.information-page .information-hero .rv-aniversario-texto { font-size: clamp(9px, 0.6vw, 10px); }
-.information-page .information-hero .rv-title span { color: var(--rv-oro); display: block; }
-.information-page .information-lead { max-width: 640px; font-size: 18px; line-height: 1.6; color: var(--rv-gris-texto); margin: 26px 0 30px; }
-.information-page .information-card p:not(.eyebrow) { color: var(--rv-gris-texto); }
-.information-page .information-card-dark h2, .information-page .speaker-card h2 { font: 900 clamp(34px, 4vw, 52px)/1.02 var(--rv-font-titulo); color: var(--rv-negro); }
-.information-page .rv-columnas p.rv-dato, .information-page .rv-columnas .rv-dato { font: 700 clamp(21px, 2.2vw, 30px)/1.08 var(--rv-font-titulo); color: var(--rv-negro); max-width: none; }
-.information-page .rv-columnas .rv-dato-secundario { font: 300 clamp(15px, 1.4vw, 19px)/1.35 var(--rv-font-texto); color: var(--rv-gris-texto); }
-.information-page .information-card-dark > p:not(.eyebrow) { font-size: 17px; line-height: 1.65; }
-.information-page .speaker-bio p { font-size: 16px; line-height: 1.65; }
-.information-page .information-card-dark { max-width: none; padding-top: 48px; }
-.information-page .information-card-dark > * { margin-left: 0 !important; margin-right: 0 !important; }
-.information-columns { max-width: 860px; margin-top: 36px; padding-top: 26px; border-top: 2px solid var(--rv-oro); }
-.information-page .speaker-card { background: var(--rv-blanco); border: 1px solid var(--rv-borde); border-left: 4px solid var(--rv-oro); border-radius: var(--rv-radio); }
-.information-page .speaker-card .brand-logo { width: auto; height: 120px; margin: 4px 0 22px; }
-.information-page .information-footer { border-color: var(--rv-borde); }
-.information-page .information-footer .eyebrow { color: var(--rv-rojo); letter-spacing: 3px; font-weight: 500; }
 
 /* ---------- Acceso organizador ---------- */
 .auth-card { background: var(--rv-blanco); border: 1px solid var(--rv-borde); border-top: 4px solid var(--rv-oro); border-radius: var(--rv-radio); box-shadow: 0 18px 40px rgba(26, 26, 26, .06); }

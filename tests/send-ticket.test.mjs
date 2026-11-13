@@ -22,7 +22,9 @@ function setup(options = {}) {
   const env = { SUPABASE_URL: 'https://test.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'secret', MAKE_TICKET_WEBHOOK_URL: 'https://hook.make.com/ticket', MAKE_WEBHOOK_API_KEY: 'test-key', PUBLIC_SITE_URL: 'https://evento.example.com', ...options.env }
   const createClient = (_url, key) => {
     assert.equal(key, 'secret')
+    const table = { invitations: options.invitation === undefined ? { event_id: 'e1', guest_id: 'g1' } : options.invitation, rsvps: { status: options.rsvp || 'confirmed' } }
     return {
+      from: name => { const query = { select: () => query, eq: () => query, maybeSingle: async () => ({ data: table[name], error: null }) }; return query },
       rpc: async (name, args) => {
         if (name === 'release_ticket_email') { calls.releases++; assert.equal(args.target_invitation_id, invitationId); return { error: null } }
         assert.equal(name, 'claim_ticket_email'); assert.equal(args.invitation_token, 'abc123token'); calls.claims++
@@ -32,7 +34,7 @@ function setup(options = {}) {
   }
   vm.runInNewContext(compiled, {
     createClient, jsPDF: FakePdf, QRCode: { toDataURL: async () => 'data:image/png;base64,AA==' },
-    URL, Response, AbortSignal, btoa, Uint8Array, String, console: { error() {} },
+    URL, Response, AbortSignal, btoa, atob, Uint8Array, String, console: { error() {} },
     Deno: { env: { get: key => env[key] }, serve: fn => { handler = fn } },
     fetch: async (url, init) => {
       if (url.endsWith('/brand/rv-logo.png')) return new Response(new Uint8Array([1, 2, 3]))
@@ -43,7 +45,8 @@ function setup(options = {}) {
     },
   })
   const call = (body = { token: 'abc123token' }) => handler(new Request('https://test/fn', { method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body) }))
-  return { call, calls, payload: () => payload }
+  const qr = token => handler(new Request(`https://test/fn?qr=${token}`))
+  return { call, qr, calls, payload: () => payload }
 }
 
 test('rechaza tokens inválidos sin consultar ni enviar', async () => {
@@ -58,7 +61,7 @@ test('envía a Make la entrada en PDF con saludo y enlace', async () => {
   assert.deepEqual(app.calls, { claims: 1, releases: 0, sends: 1 })
   assert.deepEqual(app.payload(), {
     invitation_id: invitationId, guest_name: '&lt;Ana&gt;', greeting: 'Estimado(a) &lt;Ana&gt;:', email: 'ana@example.com',
-    ticket_url: 'https://evento.example.com/registro/abc123token', ticket_filename: 'entrada-reformas-fiscales-2027.pdf', ticket_pdf: 'JVBERg==',
+    ticket_url: 'https://evento.example.com/registro/abc123token', ticket_qr_url: 'https://test.supabase.co/functions/v1/send-ticket?qr=abc123token', ticket_filename: 'entrada-reformas-fiscales-2027.pdf', ticket_pdf: 'JVBERg==',
   })
 })
 
@@ -77,4 +80,11 @@ test('libera el envío si Make no confirma', async () => {
 test('saludo neutro sin nombre y error de configuración sin webhook', async () => {
   const app = setup({ fullName: null }); await app.call(); assert.equal(app.payload().greeting, 'Reciba un cordial saludo.')
   const missing = setup({ env: { MAKE_TICKET_WEBHOOK_URL: '' } }); assert.equal((await missing.call()).status, 500); assert.equal(missing.calls.claims, 0)
+})
+
+test('GET ?qr= devuelve el PNG del QR sólo si la asistencia está confirmada', async () => {
+  const ok = await setup().qr('abc123token'); assert.equal(ok.status, 200); assert.equal(ok.headers.get('Content-Type'), 'image/png')
+  for (const [options, token] of [[{}, 'a b'], [{ invitation: null }, 'abc123token'], [{ rsvp: 'cancelled' }, 'abc123token']]) {
+    assert.equal((await setup(options).qr(token)).status, 404)
+  }
 })

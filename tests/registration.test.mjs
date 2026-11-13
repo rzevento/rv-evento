@@ -65,7 +65,7 @@ test('a failed cancellation keeps the invitation available and displays an error
 })
 
 for (const [constraint, message] of [
-  ['guests_event_phone_key', 'Este celular ya está registrado con otro invitado'],
+  ['guests_event_phone_key', 'Este teléfono ya está registrado con otro invitado'],
   ['guests_event_email_key', 'Este correo ya está registrado con otro invitado'],
   ['unrelated_constraint', 'No pudimos completar el registro'],
 ]) {
