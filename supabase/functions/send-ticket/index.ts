@@ -86,7 +86,7 @@ async function ticketPdfBase64(name: string, accessToken: string, logo: string |
   pdf.setFontSize(12)
   pdf.setTextColor(51, 51, 51)
   pdf.text(event.date, 24, 129)
-  pdf.text(event.time, 24, 136.5)
+  pdf.text(`Horario ${event.time}`, 24, 136.5)
   pdf.text(event.registration, 24, 144)
   pdf.text(`${event.venue}, ${event.city}`, 24, 151.5)
   pdf.addImage(qrDataUrl, 'PNG', 24, 164, 62, 62)
