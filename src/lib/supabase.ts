@@ -253,6 +253,15 @@ export async function sendInvitation(guestId: string, resend = false, reminder =
 
 // Pide a la función send-ticket que mande la entrada (PDF) al correo del invitado confirmado.
 // Es idempotente: si ya se envió o no hay correo, responde ok sin volver a mandar.
+// Sólo administradores: libera el envío para que sendTicket vuelva a mandar la entrada.
+export async function releaseGuestTicket(guestId: string) {
+  return organizerAction(async () => {
+    if (!supabase) return { data: null, error: null, demo: true }
+    const { error } = await supabase.rpc('release_guest_ticket_email', { target_guest_id: guestId })
+    return { data: null, error, demo: false }
+  })
+}
+
 export async function sendTicket(token: string) {
   if (!supabase) return { data: null, error: null, demo: true }
   const { data, error } = await supabase.functions.invoke('send-ticket', { body: { token } })

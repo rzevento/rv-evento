@@ -114,6 +114,8 @@ En WhatsApp aparece **Abrir recordatorio en WhatsApp** cuando hay un envío prev
 
 Cuando un invitado confirma desde su enlace (o un administrador lo marca como confirmado en el panel), el sitio llama a la función `send-ticket`. La función genera la misma entrada en PDF que se descarga desde la página, con su QR, y la manda a Make para que salga por correo como adjunto. Sólo se envía si el RSVP está confirmado, al correo registrado del invitado y una sola vez (queda en `invitations.ticket_sent_at`). Si Make no responde `{"ok":true}`, se libera para que un siguiente intento la vuelva a mandar. Si el invitado no tiene correo, no se envía nada; sigue pudiendo descargarla desde la página.
 
+Si el invitado cancela una asistencia confirmada (desde su enlace o desde el panel), un trigger en `rsvps` pone `ticket_sent_at` en nulo, así que al volver a confirmar le llega una entrada nueva. Los administradores también pueden usar **Reenviar entrada** en el menú ⋯ de un invitado confirmado con correo: llama a `release_guest_ticket_email` (sólo admins) y luego a `send-ticket`. Ambos están en `supabase/migrations/20261113190000_ticket_resend_after_cancel.sql`.
+
 ### 1. Base de datos
 
 Pega en el SQL Editor de Supabase el contenido de `supabase/migrations/20261112120000_ticket_email.sql` y ejecútalo.
