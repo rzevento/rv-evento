@@ -7,18 +7,19 @@ import ts from 'typescript'
 const source = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8')
 const component = source.slice(source.indexOf('function RegistrationPage('), source.indexOf('function TokenRegistrationPage('))
 const compiled = ts.transpileModule(component, { compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React } }).outputText
-function setup({ direct = false, cancelError = false, submitError = null } = {}) {
+function setup({ direct = false, cancelError = false, submitError = null, submitData = null, beginResult = { token: 'personal-token', status: 'already_registered' } } = {}) {
   const state = [], effects = [], calls = []
   let cursor = 0, mounted = false
-  const details = { name: 'Ana Pérez', email: 'ana@example.com', phone: '', company: 'Empresa', status: submitError ? 'pending' : 'confirmed' }
+  const details = { name: 'Ana Pérez', email: 'ana@example.com', phone: '', company: 'Empresa', status: submitError || submitData ? 'pending' : 'confirmed' }
   const context = {
     React: { createElement: (type, props, ...children) => ({ type, props: props || {}, children }) },
     useState(initial) { const index = cursor++; if (!(index in state)) state[index] = initial; return [state[index], value => { state[index] = value }] },
     useEffect(fn) { if (!mounted) effects.push(fn) },
     getInvitationDetails: async () => ({ data: details, error: null }),
-    submitRsvp: async () => ({ error: submitError }),
-    beginRsvp: async () => ({ data: { token: 'personal-token', status: 'already_registered' }, error: null }),
+    submitRsvp: async () => ({ data: submitData, error: submitError }),
+    beginRsvp: async () => ({ data: beginResult, error: null }),
     cancelRsvp: async token => { calls.push(token); return { error: cancelError ? new Error('network') : null } },
+    registrationMessages: { notFound: 'No encontramos ese correo o teléfono', contactOfAnother: 'corresponde a la invitación de otra persona', linkOfAnother: 'está a nombre de otra persona', phoneInUse: 'Este teléfono ya está registrado con otro invitado', emailInUse: 'Este correo ya está registrado con otro invitado' },
     event: {}, Logo: 'Logo', Aniversario: 'Aniversario', Link: 'Link',
   }
   for (const name of ['Check', 'CalendarDays', 'ShieldCheck', 'Download', 'ArrowRight', 'MapPin', 'LockKeyhole']) context[name] = name
@@ -51,6 +52,8 @@ test('an already registered email retrieves saved guest details before offering 
   const email = nodes(tree).find(n => n.type === 'input' && n.props.type === 'email')
   email.props.onChange({ target: { value: 'ana@example.com' } })
   tree = app.render()
+  nodes(tree).find(n => n.type === 'input' && n.props.autoComplete === 'name').props.onChange({ target: { value: 'Ana Pérez' } })
+  tree = app.render()
   await nodes(tree).find(n => n.type === 'form').props.onSubmit({ preventDefault() {} })
   assert.match(text(app.render()), /Su asistencia ya está confirmada/)
 })
@@ -79,3 +82,25 @@ for (const [constraint, message] of [
     assert.equal(nodes(tree).filter(n => n.type === 'form').length, 1)
   })
 }
+
+for (const [status, message] of [['not_found', /No encontramos ese correo o teléfono/], ['name_mismatch', /corresponde a la invitación de otra persona/]]) {
+  test(`the home page does not hand out another guest's pass when begin_rsvp answers ${status}`, async () => {
+    const app = setup({ beginResult: { status } }); let tree = app.render()
+    nodes(tree).find(n => n.type === 'input' && n.props.type === 'email').props.onChange({ target: { value: 'otra@example.com' } })
+    tree = app.render()
+    nodes(tree).find(n => n.type === 'input' && n.props.autoComplete === 'name').props.onChange({ target: { value: 'Luis Gómez' } })
+    tree = app.render()
+    await nodes(tree).find(n => n.type === 'form').props.onSubmit({ preventDefault() {} })
+    tree = app.render()
+    assert.match(text(tree), message)
+    assert.doesNotMatch(text(tree), /Descargar entrada/)
+  })
+}
+test('a personal link typed with another person\'s name is not confirmed', async () => {
+  const app = setup({ direct: true, submitError: null, submitData: { status: 'name_mismatch' } })
+  app.render(); await app.load()
+  await nodes(app.render()).find(n => n.type === 'form').props.onSubmit({ preventDefault() {} })
+  const tree = app.render()
+  assert.match(text(tree), /está a nombre de otra persona/)
+  assert.doesNotMatch(text(tree), /Su lugar está reservado/)
+})

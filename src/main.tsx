@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useId, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider, useIsMutating, useMutation, useQuery } from '@tanstack/react-query'
 import { createRootRoute, createRoute, createRouter, Link, Outlet, RouterProvider, useNavigate, useParams } from '@tanstack/react-router'
-import { AlertCircle, ArrowRight, CalendarDays, Camera, Check, CheckCircle2, ChevronDown, Clock3, Download, Eye, EyeOff, Filter, LayoutDashboard, LockKeyhole, LogOut, MapPin, Menu, MoreHorizontal, Pencil, Trash2, QrCode, Search, Send, Settings2, ShieldCheck, Upload, Users, X } from 'lucide-react'
+import { AlertCircle, ArrowRight, CalendarDays, Camera, Check, CheckCircle2, ChevronDown, ClipboardList, Clock3, Download, Eye, EyeOff, Filter, LayoutDashboard, LockKeyhole, LogOut, MapPin, Menu, MoreHorizontal, Pencil, Trash2, QrCode, Search, Send, Settings2, ShieldCheck, Upload, Users, X } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
 import { QrScanner } from './components/QrScanner'
@@ -13,6 +13,7 @@ import ImpersonationControl from './components/ImpersonationControl'
 import { beginIdentityChange, finishIdentityChange, cancelIdentityChange, resetImpersonation, getImpersonationId, organizerAction } from './lib/impersonation-transport'
 import { startOrganizerImpersonation, stopOrganizerImpersonation } from './lib/supabase'
 import EventDashboard from './components/EventDashboard'
+import RegistrationLogPage from './components/RegistrationLog'
 import { arrivedGuests } from './lib/dashboard'
 import type { Guest, GuestStatus } from './lib/dashboard'
 import './styles.css'
@@ -190,6 +191,14 @@ function PublicShell() {
   return <div className="public-shell"><div className="rv-franja-superior" aria-hidden="true" /><header className="public-nav"><Link to="/" className="brand" aria-label="Ruvalcaba Villalobos · Inicio"><Logo /></Link><nav className="public-menu" aria-label="Navegación principal"><Link to="/" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}>Registro</Link><Link to="/admin" className="quiet-link">Acceso organizador <ArrowRight size={15} /></Link></nav></header><Outlet /><footer className="rv-footer"><MiembroTaxPro /></footer></div>
 }
 
+const registrationMessages = {
+  notFound: 'No encontramos ese correo o teléfono en la lista de invitados. Guardamos sus datos para que el equipo organizador los revise; si fue invitado con otro correo o teléfono, intente con ese.',
+  contactOfAnother: 'Ese correo o teléfono corresponde a la invitación de otra persona, así que no podemos emitir su entrada con él. Guardamos sus datos para que el equipo organizador los revise. Si usted también fue invitado, use su propio correo o teléfono.',
+  linkOfAnother: 'Esta invitación personal está a nombre de otra persona, así que no podemos emitir su entrada con ella. Guardamos sus datos para que el equipo organizador los revise. Si usted también fue invitado, use el enlace que le enviaron a usted.',
+  phoneInUse: 'Este teléfono ya está registrado con otro invitado. Verifique el número o contacte al organizador para recibir ayuda.',
+  emailInUse: 'Este correo ya está registrado con otro invitado. Verifique el correo o contacte al organizador para recibir ayuda.',
+}
+
 function RegistrationPage({ token = 'demo' }: { token?: string }) {
   const directToken = token !== 'demo' ? token : ''
   const [resolvedToken, setResolvedToken] = useState(directToken)
@@ -250,14 +259,23 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
       setError('Escriba su correo o teléfono para identificar su registro.')
       return
     }
+    // El nombre se pide antes de buscar la invitación: con él se comprueba que el correo o teléfono
+    // es de quien se registra y no se entrega la entrada (el QR) de otra persona.
+    if (!form.name.trim()) {
+      setError('Escriba su nombre completo para identificar su registro.')
+      return
+    }
     setSubmitting(true)
     setError('')
     let currentToken = resolvedToken
     if (!currentToken) {
-      const lookup = await beginRsvp(form.email || form.phone)
-      if (lookup.error) { setSubmitting(false); setError('No encontramos ese correo o teléfono en la lista de invitados.'); return }
-      if (lookup.data?.status === 'already_registered') {
-        currentToken = lookup.data.token || ''
+      const lookup = await beginRsvp(form)
+      const status = lookup.data?.status
+      if (lookup.error || !status) { setSubmitting(false); setError('No pudimos verificar su registro. Intente de nuevo.'); return }
+      if (status === 'not_found') { setSubmitting(false); setError(registrationMessages.notFound); return }
+      if (status === 'name_mismatch' || status === 'name_required') { setSubmitting(false); setError(registrationMessages.contactOfAnother); return }
+      if (status === 'already_registered') {
+        currentToken = lookup.data?.token || ''
         const details = await getInvitationDetails(currentToken)
         if (details.error || !details.data) {
           setSubmitting(false)
@@ -271,28 +289,38 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
         setSent(true)
         return
       }
+      // El token sólo se guarda al confirmar: si la persona corrige su correo o teléfono, se vuelve a buscar.
       currentToken = lookup.data?.token || ''
-      setResolvedToken(currentToken)
     }
-    if (!form.name.trim() || !form.company.trim()) {
+    if (!form.company.trim()) {
       setSubmitting(false)
       setError('Para completar el registro necesitamos su nombre y empresa.')
       return
     }
     const result = await submitRsvp({ token: currentToken, ...form })
     setSubmitting(false)
+    const outcome = (result.data || null) as { status?: string; field?: string } | null
+    if (outcome?.status === 'name_mismatch') {
+      setError(directToken ? registrationMessages.linkOfAnother : registrationMessages.contactOfAnother)
+      return
+    }
+    if (outcome?.status === 'contact_in_use') {
+      setError(outcome.field === 'phone' ? registrationMessages.phoneInUse : registrationMessages.emailInUse)
+      return
+    }
     if (result.error) {
       const conflict = result.error as { code?: string; message?: string; details?: string }
       const description = `${conflict.message || ''} ${conflict.details || ''}`
       if (conflict.code === '23505' && description.includes('guests_event_phone_key')) {
-        setError('Este teléfono ya está registrado con otro invitado. Verifique el número o contacte al organizador para recibir ayuda.')
+        setError(registrationMessages.phoneInUse)
       } else if (conflict.code === '23505' && description.includes('guests_event_email_key')) {
-        setError('Este correo ya está registrado con otro invitado. Verifique el correo o contacte al organizador para recibir ayuda.')
+        setError(registrationMessages.emailInUse)
       } else {
         setError('No pudimos completar el registro. Verifique su enlace e inténtelo de nuevo.')
       }
       return
     }
+    setResolvedToken(currentToken)
     // La entrada también se manda por correo; si falla, sigue disponible para descargar aquí.
     if (form.email.trim()) void sendTicket(currentToken).catch(() => undefined)
     setSent(true)
@@ -389,7 +417,7 @@ function AdminLayout() {
   if (organizerQuery.isError || !organizer) return <div className="auth-loading">{getImpersonationId() && <><p>La vista del usuario se ha detenido.</p><button className="button button-dark" disabled={identityChanging} onClick={() => void changeIdentity()}>Volver a mi cuenta</button></>}{identityError && <p role="alert">{identityError}</p>}<p role="alert">No pudimos verificar tu acceso al evento.</p><button className="button button-dark" onClick={() => void organizerQuery.refetch()}>Reintentar</button><button className="outline-button" onClick={() => { if (supabase) void supabase.auth.signOut() }}>Cerrar sesión</button></div>
   const organizerInitials = organizer.displayName.split(' ').map(name => name[0]).slice(0, 2).join('').toUpperCase()
   const sentInvitations = guests.filter(guest => guest.invite === 'Enviada' || Boolean(guest.whatsappSentAt)).length
-  return <OrganizerRoleContext.Provider value={organizer.roleCode}><div className={`admin-shell ${mobileNavOpen ? 'mobile-open' : ''}`}><aside className="sidebar"><div className="sidebar-brand"><span>RUVALCABA VILLALOBOS</span></div><div className="event-switcher"><span>EVENTO ACTIVO</span><strong>Reformas fiscales 2027</strong><ChevronDown size={15} /></div><nav onClick={() => setMobileNavOpen(false)}><Link to="/admin" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}><LayoutDashboard size={18} /> Resumen</Link><Link to="/admin/invitados" activeProps={{ className: 'active' }}><Users size={18} /> Invitados <b>{sentInvitations}</b></Link><Link to="/admin/check-in" activeProps={{ className: 'active' }}><CheckCircle2 size={18} /> Registro en evento</Link>{canManageInvitations && <Link to="/admin/configuracion" activeProps={{ className: 'active' }}><Settings2 size={18} /> Configuración</Link>}{organizer.actorIsAdmin && <ImpersonationControl key={organizer.impersonationId || 'self'} profile={organizer} busy={identityChanging} error={identityError} onChange={changeIdentity} />}</nav><div className="sidebar-bottom"><div className="user-avatar">{organizerInitials}</div><div><strong>{organizer.displayName}</strong><small>{organizer.role}</small></div><button className="sidebar-logout" onClick={() => { localStorage.removeItem('rv-organizer-authenticated'); sessionStorage.removeItem('rv-organizer-authenticated'); if (supabase) void supabase.auth.signOut(); else { setLocalAuthenticated(false); setAuthenticated(false) } }} aria-label="Cerrar sesión"><LogOut size={17} aria-hidden="true" /><span>Cerrar sesión</span></button></div></aside><main className="admin-main"><header className="admin-header"><button className="mobile-menu" onClick={() => setMobileNavOpen(current => !current)} aria-label="Abrir menú"><Menu size={20} /></button><div><p className="eyebrow">{event.date}</p><h1>{event.title} {event.accent}</h1></div>{canManageInvitations && <div className="header-actions"><button className="icon-button" onClick={() => downloadGuestCsv(guests)} aria-label="Descargar lista de invitados"><Download size={17} /></button><button className="button button-orange small" onClick={() => void navigate({ to: '/admin/invitados' })}><Send size={16} /> Nueva invitación</button></div>}</header>{identityChanging ? <div className="impersonation-busy" role="status">Cambiando de usuario…</div> : <div key={`${organizer.actorUserId}:${organizer.userId}:${organizer.impersonationId || 'self'}`}><Outlet /></div>}</main></div></OrganizerRoleContext.Provider>
+  return <OrganizerRoleContext.Provider value={organizer.roleCode}><div className={`admin-shell ${mobileNavOpen ? 'mobile-open' : ''}`}><aside className="sidebar"><div className="sidebar-brand"><span>RUVALCABA VILLALOBOS</span></div><div className="event-switcher"><span>EVENTO ACTIVO</span><strong>Reformas fiscales 2027</strong><ChevronDown size={15} /></div><nav onClick={() => setMobileNavOpen(false)}><Link to="/admin" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}><LayoutDashboard size={18} /> Resumen</Link><Link to="/admin/invitados" activeProps={{ className: 'active' }}><Users size={18} /> Invitados <b>{sentInvitations}</b></Link><Link to="/admin/check-in" activeProps={{ className: 'active' }}><CheckCircle2 size={18} /> Registro en evento</Link><Link to="/admin/bitacora" activeProps={{ className: 'active' }}><ClipboardList size={18} /> Bitácora</Link>{canManageInvitations && <Link to="/admin/configuracion" activeProps={{ className: 'active' }}><Settings2 size={18} /> Configuración</Link>}{organizer.actorIsAdmin && <ImpersonationControl key={organizer.impersonationId || 'self'} profile={organizer} busy={identityChanging} error={identityError} onChange={changeIdentity} />}</nav><div className="sidebar-bottom"><div className="user-avatar">{organizerInitials}</div><div><strong>{organizer.displayName}</strong><small>{organizer.role}</small></div><button className="sidebar-logout" onClick={() => { localStorage.removeItem('rv-organizer-authenticated'); sessionStorage.removeItem('rv-organizer-authenticated'); if (supabase) void supabase.auth.signOut(); else { setLocalAuthenticated(false); setAuthenticated(false) } }} aria-label="Cerrar sesión"><LogOut size={17} aria-hidden="true" /><span>Cerrar sesión</span></button></div></aside><main className="admin-main"><header className="admin-header"><button className="mobile-menu" onClick={() => setMobileNavOpen(current => !current)} aria-label="Abrir menú"><Menu size={20} /></button><div><p className="eyebrow">{event.date}</p><h1>{event.title} {event.accent}</h1></div>{canManageInvitations && <div className="header-actions"><button className="icon-button" onClick={() => downloadGuestCsv(guests)} aria-label="Descargar lista de invitados"><Download size={17} /></button><button className="button button-orange small" onClick={() => void navigate({ to: '/admin/invitados' })}><Send size={16} /> Nueva invitación</button></div>}</header>{identityChanging ? <div className="impersonation-busy" role="status">Cambiando de usuario…</div> : <div key={`${organizer.actorUserId}:${organizer.userId}:${organizer.impersonationId || 'self'}`}><Outlet /></div>}</main></div></OrganizerRoleContext.Provider>
 }
 
 function AdminLogin({ onLocalAuthenticated }: { onLocalAuthenticated: () => void }) {
@@ -992,8 +1020,9 @@ const adminRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin'
 const summaryRoute = createRoute({ getParentRoute: () => adminRoute, path: '/', component: SummaryPage })
 const guestsRoute = createRoute({ getParentRoute: () => adminRoute, path: '/invitados', component: GuestsPage })
 const checkinRoute = createRoute({ getParentRoute: () => adminRoute, path: '/check-in', component: CheckInPage })
+const logRoute = createRoute({ getParentRoute: () => adminRoute, path: '/bitacora', component: RegistrationLogPage })
 const configRoute = createRoute({ getParentRoute: () => adminRoute, path: '/configuracion', component: ConfigurationPage })
-const routeTree = rootRoute.addChildren([homeRoute, tokenRoute, adminRoute.addChildren([summaryRoute, guestsRoute, checkinRoute, configRoute])])
+const routeTree = rootRoute.addChildren([homeRoute, tokenRoute, adminRoute.addChildren([summaryRoute, guestsRoute, checkinRoute, logRoute, configRoute])])
 const router = createRouter({ routeTree })
 
 declare module '@tanstack/react-router' { interface Register { router: typeof router } }

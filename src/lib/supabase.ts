@@ -86,10 +86,88 @@ export async function submitRsvp(input: { token: string; name: string; email: st
   })
 }
 
-export async function beginRsvp(contact: string) {
-  if (!supabase) return { data: { token: 'demo-token', status: 'pending' }, error: null, demo: true }
-  const { data, error } = await supabase.rpc('begin_rsvp', { guest_contact: contact.trim() })
-  return { data, error, demo: false }
+export type BeginRsvpStatus = 'pending' | 'already_registered' | 'not_found' | 'name_mismatch' | 'name_required'
+
+export async function beginRsvp(input: { name: string; email: string; phone: string; company: string }) {
+  if (!supabase) return { data: { token: 'demo-token', status: 'pending' as BeginRsvpStatus }, error: null, demo: true }
+  const email = input.email.trim(), phone = input.phone.trim()
+  const { data, error } = await supabase.rpc('begin_rsvp', {
+    guest_contact: email || phone,
+    guest_name: input.name.trim(),
+    guest_email: email || null,
+    guest_phone: phone || null,
+    guest_company: input.company.trim() || null,
+  })
+  return { data: data as { token?: string; status: BeginRsvpStatus } | null, error, demo: false }
+}
+
+export type RegistrationLogResult = 'confirmado' | 'no_encontrado' | 'contacto_de_otro' | 'contacto_en_uso'
+export type RegistrationLogEntry = {
+  id: number
+  createdAt: string
+  result: RegistrationLogResult
+  guestId: string | null
+  guestName: string | null
+  name: string
+  email: string
+  phone: string
+  company: string
+  previousName: string | null
+  previousEmail: string | null
+  previousPhone: string | null
+  previousCompany: string | null
+  historical: boolean
+  reviewedAt: string | null
+  resolution: RegistrationResolution | null
+}
+export type RegistrationResolution = 'agregado' | 'transferido'
+
+const demoRegistrationLog: RegistrationLogEntry[] = [
+  { id: 3, createdAt: '2026-11-15T19:12:00Z', result: 'contacto_de_otro', guestId: 'demo-1', guestName: 'Mariana González', name: 'Luis Gómez', email: 'mariana@gcobalto.com', phone: '', company: 'Grupo Cobalto', previousName: 'Mariana González', previousEmail: 'mariana@gcobalto.com', previousPhone: null, previousCompany: 'Grupo Cobalto', historical: false, reviewedAt: null, resolution: null },
+  { id: 2, createdAt: '2026-11-15T17:40:00Z', result: 'no_encontrado', guestId: null, guestName: null, name: 'Pedro Ruiz', email: 'pedro.ruiz@ejemplo.com', phone: '', company: 'Nueva SA', previousName: null, previousEmail: null, previousPhone: null, previousCompany: null, historical: false, reviewedAt: null, resolution: null },
+  { id: 1, createdAt: '2026-11-14T16:05:00Z', result: 'confirmado', guestId: 'demo-2', guestName: 'Andrés Salinas', name: 'Andrés Salinas', email: 'andres@ejemplo.com', phone: '', company: 'Ejemplo SA', previousName: 'Andres Salinas', previousEmail: 'andres@ejemplo.com', previousPhone: null, previousCompany: 'Ejemplo SA', historical: false, reviewedAt: null, resolution: null },
+]
+
+export async function getRegistrationLog(): Promise<RegistrationLogEntry[]> {
+  if (!supabase) return demoRegistrationLog
+  const entries: RegistrationLogEntry[] = []
+  const pageSize = 1000
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase.from('registration_log').select('*, guests!registration_log_guest_id_fkey(full_name)').order('created_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + pageSize - 1)
+    if (error) throw error
+    entries.push(...(data || []).map(row => {
+      const guest = Array.isArray(row.guests) ? row.guests[0] : row.guests
+      return { id: Number(row.id), createdAt: row.created_at, result: row.result, guestId: row.guest_id, guestName: guest?.full_name || null, name: row.submitted_name || '', email: row.submitted_email || '', phone: row.submitted_phone || '', company: row.submitted_company || '', previousName: row.previous_name, previousEmail: row.previous_email, previousPhone: row.previous_phone, previousCompany: row.previous_company, historical: Boolean(row.historical), reviewedAt: row.reviewed_at, resolution: row.resolution || null }
+    }))
+    if (!data || data.length < pageSize) break
+  }
+  return entries
+}
+
+export async function markRegistrationReviewed(id: number, reviewed: boolean) {
+  return organizerAction(async () => {
+    if (!supabase) return { error: null, demo: true }
+    const { error } = await supabase.rpc('mark_registration_reviewed', { log_id: id, reviewed })
+    return { error, demo: false }
+  })
+}
+
+export type ResolveRegistrationResult =
+  | { status: 'ok'; guest_id: string; token: string; email: string | null }
+  | { status: 'contact_in_use'; field: 'email' | 'phone' }
+  | { status: 'already_resolved' | 'already_confirmed' | 'name_required' | 'contact_required' | 'no_invitation' | 'already_checked_in' }
+
+// Sólo administradores. 'agregar' crea un invitado nuevo; 'transferir' le pasa a esta persona la
+// invitación con la que intentó registrarse. En ambos casos queda confirmada.
+export async function resolveRegistration(id: number, mode: 'agregar' | 'transferir', input: { name: string; email: string; phone: string; company: string }) {
+  return organizerAction(async () => {
+    if (!supabase) return { data: null, error: null, demo: true }
+    const { data, error } = await supabase.rpc('resolve_registration', {
+      log_id: id, resolve_mode: mode,
+      guest_name: input.name.trim(), guest_email: input.email.trim() || null, guest_phone: input.phone.trim() || null, guest_company: input.company.trim() || null,
+    })
+    return { data: data as ResolveRegistrationResult | null, error, demo: false }
+  })
 }
 
 export async function getInvitationDetails(token: string) {
