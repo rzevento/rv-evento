@@ -104,3 +104,14 @@ test('a personal link typed with another person\'s name is not confirmed', async
   assert.match(text(tree), /está a nombre de otra persona/)
   assert.doesNotMatch(text(tree), /Su lugar está reservado/)
 })
+
+test('a personal link keeps the invited email locked and rejects another email', async () => {
+  const app = setup({ direct: true, submitError: null, submitData: { status: 'email_mismatch' } })
+  app.render(); await app.load()
+  const email = nodes(app.render()).find(n => n.type === 'input' && n.props.type === 'email')
+  assert.equal(email.props.readOnly, true)
+  await nodes(app.render()).find(n => n.type === 'form').props.onSubmit({ preventDefault() {} })
+  const tree = app.render()
+  assert.match(text(tree), /No encontramos esta dirección de correo electrónico/)
+  assert.doesNotMatch(text(tree), /Su lugar está reservado/)
+})

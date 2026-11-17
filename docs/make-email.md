@@ -53,7 +53,7 @@ Si la cuenta remitente usa Gmail o Google Workspace, agrega **Gmail → Send an 
 > Tenemos el agrado de invitarlos a nuestra conferencia de **Reformas Fiscales 2027**.
 >
 > **Fecha:** jueves 3 de diciembre de 2026
-> **Horario:** de 4:00 a 7:30 p.m. (registro a partir de las 3:30 p.m.)
+> **Horario:** de 16:00 a 19:30 hrs. (registro a partir de las 15:30 hrs.)
 > **Lugar:** Hotel RIU Guadalajara
 >
 > Para confirmar su asistencia, les solicitamos dar clic en el recuadro **“Regístrese aquí”** que aparece en la invitación de este correo y completar su registro con la misma dirección de correo electrónico en la que lo recibieron, ya que la invitación es personal e intransferible.
@@ -68,7 +68,7 @@ Si la cuenta remitente usa Gmail o Google Workspace, agrega **Gmail → Send an 
 >
 > Ruvalcaba Villalobos y Compañía, S.C.
 
-Para un correo con diseño, usa como contenido HTML `emails/invitacion-make.html`; las imágenes de la invitación se sirven desde `https://rv-evento.vercel.app/brand/`, así que deben estar publicadas en Vercel antes de enviar. El correo mide como máximo 640 px (también en Outlook de escritorio, con una tabla condicional `[if mso]`), para que el texto no se extienda de más en pantallas grandes. El correo ya no lleva encabezado con logo y 40 aniversario (desde el 2026-11-17): empieza directo con el saludo.
+Para un correo con diseño, usa como contenido HTML `emails/invitacion-make.html`; las imágenes de la invitación se sirven desde `https://rv-evento.vercel.app/brand/`, así que deben estar publicadas en Vercel antes de enviar. El correo mide como máximo 640 px (también en Outlook de escritorio, con una tabla condicional `[if mso]`), para que el texto no se extienda de más en pantallas grandes. El correo ya no lleva encabezado con logo y 40 aniversario (desde el 2026-11-17): empieza directo con el saludo. Cada párrafo lleva margen explícito y `hyphens:none` / `mso-hyphenate:none` para que ningún cliente de correo corte palabras con guion («direc-ción»), y «Atentamente,» y la firma van separados 36 px del texto. El horario se escribe «de 16:00 a 19:30 hrs.» en todos lados (sitio, invitación, entrada y correos).
 
 **Invitación animada en el cuerpo, sin adjuntos**: una imagen adjunta no puede llevar links, así que la invitación va dentro del correo en tres piezas de `/brand/invitacion-correo/`: `arriba.gif` (logo y 40 con su brillo, 3.5 s), `centro.jpg` (título, 2027 y datos) y `abajo.gif` (leyendas, botón «Regístrese aquí» y logo de TaxPro animado, 7 s). Las tres van en una tabla de 564 px y cada una está ligada a `{{1.invitation_url}}`, así que cualquier clic en la invitación (y en particular en el botón) abre el registro personal del invitado. El escenario ya no tiene módulos HTTP ni adjuntos. El primer cuadro de cada GIF es idéntico a la invitación, porque Outlook de escritorio sólo muestra ese cuadro. Si cambia `invitacion.png`, hay que regenerar las piezas (cortes en y=276 y y=1124). Cada `<img>` lleva `height` (138, 424 y 132, la mitad exacta de cada pieza) y las celdas tienen fondo crema `#FBF8F1` con `mso-line-height-rule:exactly`: sin eso, Outlook de escritorio en Windows deja una línea blanca entre las piezas.
 

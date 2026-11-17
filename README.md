@@ -1,6 +1,6 @@
 # Registro · Reformas fiscales 2027
 
-SPA para invitaciones, confirmaciones y registro de entrada de la conferencia **Reformas fiscales 2027** de Ruvalcaba Villalobos, Consultores Fiscales (40 aniversario). Jueves 3 de diciembre, 16:00 – 19:30 h, Hotel RIU, Guadalajara.
+SPA para invitaciones, confirmaciones y registro de entrada de la conferencia **Reformas fiscales 2027** de Ruvalcaba Villalobos, Consultores Fiscales (40 aniversario). Jueves 3 de diciembre, de 16:00 a 19:30 hrs., Hotel RIU, Guadalajara.
 
 ## Marca
 

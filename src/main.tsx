@@ -27,11 +27,11 @@ const event = {
   hostDetail: 'Consultores Fiscales',
   date: 'Jueves 3 de diciembre',
   dateShort: 'jueves 3 de diciembre',
-  time: '16:00 – 19:30 h',
-  registration: 'Registro 15:30 h',
+  time: '16:00 a 19:30 hrs.',
+  registration: 'Registro 15:30 hrs.',
   // En la entrada (PDF, confirmación y panel) el horario va en formato de 12 horas.
-  passTime: '4:00 a 7:30 pm',
-  passRegistration: 'Registro 3:30 pm',
+  passTime: 'de 16:00 a 19:30 hrs.',
+  passRegistration: 'Registro 15:30 hrs.',
   venue: 'Hotel RIU',
   city: 'Guadalajara, Jalisco',
   notice: 'Invitación personal e intransferible',
@@ -212,6 +212,8 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
   const [form, setForm] = useState({ name: '', email: '', phone: '', company: '' })
   const [prefillStatus, setPrefillStatus] = useState<'loading' | 'ready' | 'error'>(directToken ? 'loading' : 'ready')
   const [loadAttempt, setLoadAttempt] = useState(0)
+  // En el enlace personal el correo de la invitación no se puede cambiar: la invitación es personal.
+  const [invitedEmail, setInvitedEmail] = useState('')
   useEffect(() => {
     if (!directToken) return
     let active = true
@@ -226,6 +228,7 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
         return
       }
       setForm({ name: result.data.name || '', email: result.data.email || '', phone: result.data.phone || '', company: result.data.company || '' })
+      setInvitedEmail(result.data.email || '')
       setPrefillStatus('ready')
       if (result.data.status === 'confirmed') {
         setAlreadyRegistered(true)
@@ -305,6 +308,10 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
       setError(directToken ? registrationMessages.linkOfAnother : registrationMessages.contactOfAnother)
       return
     }
+    if (outcome?.status === 'email_mismatch') {
+      setError(registrationMessages.notFound)
+      return
+    }
     if (outcome?.status === 'contact_in_use') {
       setError(outcome.field === 'phone' ? registrationMessages.phoneInUse : registrationMessages.emailInUse)
       return
@@ -329,7 +336,7 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
   async function downloadPass() {
     await downloadGuestPass(form.name, resolvedToken || token)
   }
-  return <main className="register-page"><section className="register-intro"><div className="rv-intro-top"><p className="eyebrow">{event.eyebrow}</p></div><h1 className="rv-title">{event.title}</h1><img className="rv-year" src="/brand/2027-ciudad.png" alt={event.accent} width={946} height={334} /><hr className="rv-divisor" /><div className="rv-columnas"><p className="rv-dato">{event.date}</p><p><span className="rv-dato">{event.time}</span><span className="rv-dato-secundario">{event.registration}</span></p><p><span className="rv-dato">{event.venue}</span><span className="rv-dato-secundario">{event.city}</span></p></div><p className="rv-aviso">{event.notice}</p></section><section className="register-card"><div className="card-top"><p className="eyebrow">Registro</p><h2>Confirme su asistencia</h2><p>Complete sus datos para reservar su lugar.</p></div><form onSubmit={handleSubmit} aria-busy={prefillStatus === 'loading'}>{prefillStatus === 'loading' && <p role="status">Cargando sus datos…</p>}<label>Nombre completo<input autoComplete="name" disabled={prefillStatus !== 'ready' || submitting} value={form.name} onChange={update('name')} placeholder="Su nombre" /></label><label>Correo electrónico<input type="email" autoComplete="email" disabled={prefillStatus !== 'ready' || submitting} value={form.email} onChange={update('email')} placeholder="nombre@empresa.com" /></label><label>Teléfono<input type="tel" autoComplete="tel" disabled={prefillStatus !== 'ready' || submitting} value={form.phone} onChange={update('phone')} placeholder="México: 10 dígitos · Otros: +código de país" /></label><label>Empresa<input autoComplete="organization" disabled={prefillStatus !== 'ready' || submitting} value={form.company} onChange={update('company')} placeholder="Nombre de la empresa" /></label>{error && <p className="form-error" role="alert">{error}</p>}{prefillStatus === 'error' && <button className="outline-button" type="button" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Volver a cargar</button>}<button className="button button-orange" type="submit" disabled={submitting || prefillStatus !== 'ready'}>{submitting ? 'Guardando…' : 'Confirmar registro'} {!submitting && <ArrowRight size={17} />}</button></form><p className="privacy-note"><ShieldCheck size={15} /> Sus datos se utilizarán únicamente para la organización del evento.</p></section></main>
+  return <main className="register-page"><section className="register-intro"><div className="rv-intro-top"><p className="eyebrow">{event.eyebrow}</p></div><h1 className="rv-title">{event.title}</h1><img className="rv-year" src="/brand/2027-ciudad.png" alt={event.accent} width={946} height={334} /><hr className="rv-divisor" /><div className="rv-columnas"><p className="rv-dato">{event.date}</p><p><span className="rv-dato">{event.time}</span><span className="rv-dato-secundario">{event.registration}</span></p><p><span className="rv-dato">{event.venue}</span><span className="rv-dato-secundario">{event.city}</span></p></div><p className="rv-aviso">{event.notice}</p></section><section className="register-card"><div className="card-top"><p className="eyebrow">Registro</p><h2>Confirme su asistencia</h2><p>Complete sus datos para reservar su lugar.</p></div><form onSubmit={handleSubmit} aria-busy={prefillStatus === 'loading'}>{prefillStatus === 'loading' && <p role="status">Cargando sus datos…</p>}<label>Nombre completo<input autoComplete="name" disabled={prefillStatus !== 'ready' || submitting} value={form.name} onChange={update('name')} placeholder="Su nombre" /></label><label>Correo electrónico<input type="email" autoComplete="email" disabled={prefillStatus !== 'ready' || submitting} readOnly={Boolean(invitedEmail)} title={invitedEmail ? 'Es el correo de su invitación personal' : undefined} value={form.email} onChange={update('email')} placeholder="nombre@empresa.com" /></label><label>Teléfono<input type="tel" autoComplete="tel" disabled={prefillStatus !== 'ready' || submitting} value={form.phone} onChange={update('phone')} placeholder="México: 10 dígitos · Otros: +código de país" /></label><label>Empresa<input autoComplete="organization" disabled={prefillStatus !== 'ready' || submitting} value={form.company} onChange={update('company')} placeholder="Nombre de la empresa" /></label>{error && <p className="form-error" role="alert">{error}</p>}{prefillStatus === 'error' && <button className="outline-button" type="button" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Volver a cargar</button>}<button className="button button-orange" type="submit" disabled={submitting || prefillStatus !== 'ready'}>{submitting ? 'Guardando…' : 'Confirmar registro'} {!submitting && <ArrowRight size={17} />}</button></form><p className="privacy-note"><ShieldCheck size={15} /> Sus datos se utilizarán únicamente para la organización del evento.</p></section></main>
 }
 
 function TokenRegistrationPage() {
