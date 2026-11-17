@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, Check, Download, Repeat, Search, Undo2, UserPlus } from 'lucide-react'
-import { getRegistrationLog, markRegistrationReviewed, resolveRegistration, sendTicket } from '../lib/supabase'
+import { getEmailBounces, getRegistrationLog, getTicketLog, markRegistrationReviewed, resolveRegistration, sendTicket } from '../lib/supabase'
 import type { RegistrationLogEntry, RegistrationLogResult, RegistrationResolution } from '../lib/supabase'
 import { useCanManageInvitations } from '../lib/organizer-permissions'
+import { blockWarning, recentAccountBlock, ticketState } from '../lib/email-log'
+import { BounceLogTable, TicketLogTable, bounceCsv, ticketCsv } from './EmailLog'
 import './RegistrationLog.css'
 
 const resultLabels: Record<RegistrationLogResult, string> = {
@@ -48,10 +50,13 @@ function baseDetail(entry: RegistrationLogEntry) {
   return entry.historical ? 'Confirmación anterior a la bitácora.' : ''
 }
 
-function downloadCsv(entries: RegistrationLogEntry[], fileName: string) {
-  const header = ['fecha', 'resultado', 'nombre', 'correo', 'celular', 'empresa', 'invitacion_relacionada', 'detalle', 'revisado']
-  const rows = entries.map(e => [new Date(e.createdAt).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }), resultLabels[e.result], e.name, e.email, e.phone, e.company, e.previousName || e.guestName || '', detail(e), e.reviewedAt ? 'Sí' : 'No'])
-  const csv = [header, ...rows].map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n')
+const registrationCsv = (entries: RegistrationLogEntry[]) => [
+  ['fecha', 'resultado', 'nombre', 'correo', 'celular', 'empresa', 'invitacion_relacionada', 'detalle', 'revisado'],
+  ...entries.map(e => [new Date(e.createdAt).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }), resultLabels[e.result], e.name, e.email, e.phone, e.company, e.previousName || e.guestName || '', detail(e), e.reviewedAt ? 'Sí' : 'No']),
+]
+
+function downloadCsv(rows: string[][], fileName: string) {
+  const csv = rows.map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n')
   const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }))
   const anchor = document.createElement('a')
   anchor.href = url
@@ -63,7 +68,10 @@ function downloadCsv(entries: RegistrationLogEntry[], fileName: string) {
 export default function RegistrationLogPage() {
   const canReview = useCanManageInvitations()
   const { data = [], isPending, isError, refetch } = useQuery({ queryKey: ['registration-log'], queryFn: getRegistrationLog, refetchInterval: 60_000 })
-  const [tab, setTab] = useState<'outside' | 'all'>('outside')
+  const { data: tickets = [], isPending: ticketsPending, isError: ticketsError } = useQuery({ queryKey: ['ticket-log'], queryFn: getTicketLog, refetchInterval: 60_000 })
+  const { data: bounces = [], isPending: bouncesPending, isError: bouncesError } = useQuery({ queryKey: ['email-bounces'], queryFn: getEmailBounces, refetchInterval: 60_000 })
+  const [tab, setTab] = useState<'outside' | 'all' | 'tickets' | 'bounces'>('outside')
+  const [ticketFilter, setTicketFilter] = useState<'problems' | 'all'>('problems')
   const [showReviewed, setShowReviewed] = useState(false)
   const [search, setSearch] = useState('')
   const [saving, setSaving] = useState<number | null>(null)
@@ -75,6 +83,25 @@ export default function RegistrationLogPage() {
   const term = normalize(search.trim())
   const visible = (tab === 'outside' ? outside.filter(e => showReviewed || !e.reviewedAt) : data)
     .filter(e => !term || normalize([e.name, e.email, e.phone, e.company, e.previousName || '', e.guestName || ''].join(' ')).includes(term))
+  const visibleTickets = tickets.filter(t => !term || normalize([t.name, t.email, t.company].join(' ')).includes(term))
+  const visibleBounces = bounces.filter(b => !term || normalize([b.email, b.guestName || ''].join(' ')).includes(term))
+  const ticketProblems = tickets.filter(t => ['rebotada', 'pendiente'].includes(ticketState(t, bounces).state)).length
+  const warning = blockWarning(recentAccountBlock(bounces))
+  const emailTab = tab === 'tickets' || tab === 'bounces'
+  const loading = tab === 'tickets' ? ticketsPending || bouncesPending : tab === 'bounces' ? bouncesPending : isPending
+  const failed = tab === 'tickets' ? ticketsError || bouncesError : tab === 'bounces' ? bouncesError : isError
+  const titles = { outside: 'Registros', all: 'Registros', tickets: 'Entradas por correo', bounces: 'Correos rebotados' }
+  const descriptions = {
+    outside: 'Cada intento de registro queda guardado, aunque la persona no esté en la lista o use el correo o teléfono de otro invitado. A ellas no se les entrega entrada: aparecen en «Fuera de la lista» para que el equipo las revise.',
+    all: 'Cada intento de registro queda guardado, aunque la persona no esté en la lista o use el correo o teléfono de otro invitado. A ellas no se les entrega entrada: aparecen en «Fuera de la lista» para que el equipo las revise.',
+    tickets: 'A cada invitado que confirma se le manda su entrada por correo. Aquí se ve si salió, si rebotó y por qué. Aunque el correo rebote, la persona sí ve su QR al confirmar y en su enlace personal.',
+    bounces: 'Cada aviso de «correo no entregado» que llega a la bandeja del remitente queda aquí. Si el rebote no es por una dirección inexistente, el envío se libera solo para volver a mandarlo.',
+  }
+  function exportCsv() {
+    if (tab === 'tickets') downloadCsv(ticketCsv(visibleTickets, bounces), 'entradas-por-correo.csv')
+    else if (tab === 'bounces') downloadCsv(bounceCsv(visibleBounces), 'correos-rebotados.csv')
+    else downloadCsv(registrationCsv(visible), tab === 'outside' ? 'registros-fuera-de-lista.csv' : 'bitacora-de-registros.csv')
+  }
   async function toggleReviewed(entry: RegistrationLogEntry) {
     setSaving(entry.id)
     setError('')
@@ -84,17 +111,21 @@ export default function RegistrationLogPage() {
     await refetch()
   }
   return <section className="dashboard reglog">
-    <div className="page-heading"><div><p className="eyebrow orange">Bitácora</p><h2>Registros <span>{data.length}</span></h2><p className="muted">Cada intento de registro queda guardado, aunque la persona no esté en la lista o use el correo o teléfono de otro invitado. A ellas no se les entrega entrada: aparecen en «Fuera de la lista» para que el equipo las revise.</p></div>
-      <div className="page-actions"><button className="button button-dark" disabled={!visible.length} onClick={() => downloadCsv(visible, tab === 'outside' ? 'registros-fuera-de-lista.csv' : 'bitacora-de-registros.csv')}><Download size={16} /> Exportar CSV</button></div></div>
+    <div className="page-heading"><div><p className="eyebrow orange">Bitácora</p><h2>{titles[tab]} <span>{tab === 'tickets' ? tickets.length : tab === 'bounces' ? bounces.length : data.length}</span></h2><p className="muted">{descriptions[tab]}</p></div>
+      <div className="page-actions"><button className="button button-dark" disabled={tab === 'tickets' ? !visibleTickets.length : tab === 'bounces' ? !visibleBounces.length : !visible.length} onClick={exportCsv}><Download size={16} /> Exportar CSV</button></div></div>
+    {warning && <p className="form-error emaillog-warning" role="alert">{warning}</p>}
     <div className="filter-bar"><div className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre, correo, celular o empresa" /></div>
-      {tab === 'outside' && <label className="filter-button reglog-toggle"><input type="checkbox" checked={showReviewed} onChange={e => setShowReviewed(e.target.checked)} /> Mostrar revisados</label>}</div>
+      {tab === 'outside' && <label className="filter-button reglog-toggle"><input type="checkbox" checked={showReviewed} onChange={e => setShowReviewed(e.target.checked)} /> Mostrar revisados</label>}
+      {tab === 'tickets' && <label className="filter-button"><select aria-label="Filtrar entradas" value={ticketFilter} onChange={e => setTicketFilter(e.target.value as 'problems' | 'all')}><option value="problems">Rebotadas o sin enviar</option><option value="all">Todas las entradas</option></select></label>}</div>
     {error && <p className="form-error" role="alert">{error}</p>}
     {notice && <p className="guest-list-summary reglog-notice" role="status">{notice}</p>}
     <div className="panel guests-table-panel reglog-panel">
-      <div className="table-tabs"><button className={tab === 'outside' ? 'selected' : ''} onClick={() => setTab('outside')}>Fuera de la lista <b>{pendingOutside.length}</b></button><button className={tab === 'all' ? 'selected' : ''} onClick={() => setTab('all')}>Todos los registros <b>{data.length}</b></button></div>
-      <div className="reglog-head"><span>FECHA</span><span>PERSONA</span><span>EMPRESA</span><span>RESULTADO</span><span>DETALLE</span><span></span></div>
-      {isPending ? <p className="guest-list-empty" role="status">Cargando bitácora…</p>
-        : isError ? <p className="guest-list-empty" role="alert">No pudimos cargar la bitácora. Revisa tu conexión.</p>
+      <div className="table-tabs"><button className={tab === 'outside' ? 'selected' : ''} onClick={() => setTab('outside')}>Fuera de la lista <b>{pendingOutside.length}</b></button><button className={tab === 'all' ? 'selected' : ''} onClick={() => setTab('all')}>Todos los registros <b>{data.length}</b></button><button className={tab === 'tickets' ? 'selected' : ''} onClick={() => setTab('tickets')}>Entradas <b>{ticketProblems}</b></button><button className={tab === 'bounces' ? 'selected' : ''} onClick={() => setTab('bounces')}>Rebotes <b>{bounces.length}</b></button></div>
+      {!emailTab && <div className="reglog-head"><span>FECHA</span><span>PERSONA</span><span>EMPRESA</span><span>RESULTADO</span><span>DETALLE</span><span></span></div>}
+      {loading ? <p className="guest-list-empty" role="status">Cargando bitácora…</p>
+        : failed ? <p className="guest-list-empty" role="alert">No pudimos cargar la bitácora. Revisa tu conexión.</p>
+        : tab === 'tickets' ? <TicketLogTable tickets={visibleTickets} bounces={bounces} filter={ticketFilter} canResend={canReview} onNotice={setNotice} onError={setError} />
+        : tab === 'bounces' ? <BounceLogTable bounces={visibleBounces} />
         : visible.length === 0 ? <p className="guest-list-empty">{tab === 'outside' ? 'No hay personas fuera de la lista pendientes de revisar.' : 'Aún no hay registros.'}</p>
         : visible.map(entry => <div className={`reglog-line ${entry.reviewedAt ? 'reviewed' : ''}`} key={entry.id}>
           <span className="reglog-date">{formatDate(entry.createdAt)}</span>

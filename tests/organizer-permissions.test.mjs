@@ -63,7 +63,7 @@ function render(component, { role = 'staff', actorIsAdmin = role === 'admin', im
     Link: ({ children, to }) => React.createElement('a', { href: to }, children),
     Outlet: () => React.createElement('div', null, 'Contenido del panel'),
     ...Object.fromEntries(icons.map(name => [name, () => null])),
-    supabase: null, demoGuests: data, canSendPendingEmail: () => true, canSendReminderEmail: item => item.invite === 'Enviada' && item.status === 'Pendiente' && !item.reminderSentAt, whatsappPhone: value => value, canSendPendingTicket: () => true, BULK_EMAIL_PAUSE_MS: 15000, bulkDurationLabel: () => '1 min',
+    supabase: null, demoGuests: data, canSendPendingEmail: () => true, canSendReminderEmail: item => item.invite === 'Enviada' && item.status === 'Pendiente' && !item.reminderSentAt, whatsappPhone: value => value, canSendPendingTicket: () => true, BULK_EMAIL_PAUSE_MS: 15000, bulkDurationLabel: () => '1 min', getEmailBounces: () => [], recentAccountBlock: () => null, blockWarning: () => '',
     localStorage: { getItem: () => null },
     event: { title: 'Evento de prueba', date: '3 de diciembre' },
   }

@@ -155,3 +155,18 @@ En lugar de Gmail, usa **Email → Send an Email** con **Others (SMTP)**. Config
 ## Envíos masivos pausados (desde el 2026-11-17)
 
 El 2026-11-17 Microsoft 365 restringió la cuenta remitente tras una ráfaga de invitaciones: desde ese momento todo correo rebotó con `550 5.1.8 Access denied, bad outbound sender`. Outlook acepta el correo antes de rechazarlo, así que Make respondió `ok` y la base los dejó como enviados. Para no repetirlo, los tres envíos masivos del panel («Enviar todas las invitaciones», «Enviar todos los recordatorios» y «Enviar entradas pendientes») mandan un correo cada 15 s (`BULK_EMAIL_PAUSE_MS` en `src/lib/invitations.ts`, unos 240 por hora), piden confirmación con el tiempo estimado y tienen «Detener envío». «Enviar entradas pendientes» (sólo administradores) manda la entrada a los confirmados cuyo `ticket_sent_at` es nulo; `send-ticket` sigue siendo idempotente. Si la cuenta vuelve a quedar restringida, la desbloquea un administrador de Microsoft 365 en Microsoft Defender → Restricted entities, y los envíos rebotados se liberan con SQL (estado `bounced`, `sent_at` y `ticket_sent_at` en nulo) antes de reenviar.
+
+## Bitácora de rebotes (desde el 2026-11-18)
+
+Los avisos de «correo no entregado» que llegan a la bandeja del remitente se registran en `public.email_bounces` (migración `20261118090000_email_bounces.sql`) y se ven en el panel, en **Bitácora → Entradas** (estado de la entrada de cada confirmado: enviada, rebotó, reenviada, pendiente) y **Bitácora → Rebotes** (cada aviso con su motivo y qué hacer). Si en las últimas 12 horas hubo un rebote por bloqueo de la cuenta, la lista de invitados y la bitácora muestran un aviso y los envíos masivos lo repiten antes de confirmar.
+
+Escenario de Make **«RV Reformas fiscales 2027 - Registrar rebotes»**:
+
+1. **Microsoft 365 Email → Watch Emails**, con la misma conexión de Outlook que los demás escenarios, carpeta Bandeja de entrada, «From now on».
+2. **Filtro** (entre módulos): el asunto contiene `Undeliverable`, `No se puede entregar`, `Delivery Status Notification` o `no entregado`, o el remitente contiene `MicrosoftExchange`, `postmaster` o `mailer-daemon`.
+3. **HTTP → Make a request**: `POST https://mezagevywxydmjcucxej.supabase.co/rest/v1/rpc/record_email_bounce`, encabezados `apikey: <publishable key>` y `Content-Type: application/json`, cuerpo JSON (armado con el módulo JSON → Create JSON para que el HTML del aviso quede escapado):
+   `{"secret": "<clave de private.bounce_webhook_secret>", "subject": {{subject}}, "body": {{body content}}, "received_at": {{receivedDateTime}}, "message_id": {{internetMessageId}}}`
+
+La función responde `{"status":"ok", "kind", "reason", "released", …}`, `duplicate` si el aviso ya estaba, `no_recipient` si no encontró a quién iba y `forbidden` si la clave no coincide. La clave no está en el repo: se carga una sola vez con `insert into private.bounce_webhook_secret(secret) values ('…')`.
+
+Qué hace con cada aviso: reconoce si era invitación, entrada o recordatorio (por el asunto del aviso o el asunto original citado) y el motivo (`cuenta_bloqueada` con 5.1.8, `direccion_invalida` con 5.1.1/5.1.10/«no se encontró», `rechazado` en otro caso). Si el destinatario está en la lista y el motivo no es una dirección inexistente, libera el envío (`sent_at`/`ticket_sent_at`/`reminder_sent_at` en nulo; la invitación queda con estado `bounced`) para que el envío masivo correspondiente lo vuelva a mandar. Un aviso viejo no libera un reenvío posterior (sólo se libera si el envío es anterior al aviso, con 2 minutos de margen). No se libera la invitación de quien ya respondió.

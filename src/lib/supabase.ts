@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { impersonationFetch, organizerAction } from './impersonation-transport'
 import type { OrganizerProfile } from './organizer-permissions'
+import type { EmailBounce, TicketLogEntry } from './email-log'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
@@ -142,6 +143,52 @@ export async function getRegistrationLog(): Promise<RegistrationLogEntry[]> {
     if (!data || data.length < pageSize) break
   }
   return entries
+}
+
+const demoBounces: EmailBounce[] = [
+  { id: 2, bouncedAt: '2026-11-17T22:30:24Z', email: 'jorge@vhnos.com', guestId: 'demo-2', guestName: 'Jorge Villaseñor', kind: 'entrada', reason: 'cuenta_bloqueada', detail: "Remote server returned '550 5.1.8 Access denied, bad outbound sender AS(42004)'", released: true },
+  { id: 1, bouncedAt: '2026-11-17T20:55:00Z', email: 'lucia@ldtcapital.com', guestId: 'demo-3', guestName: 'Lucía de la Torre', kind: 'invitacion', reason: 'direccion_invalida', detail: "Remote Server returned '550 5.1.10 RESOLVER.ADR.RecipientNotFound'", released: false },
+]
+
+// Avisos de rebote que registra el escenario de Make que vigila la bandeja del remitente.
+export async function getEmailBounces(): Promise<EmailBounce[]> {
+  if (!supabase) return demoBounces
+  const bounces: EmailBounce[] = []
+  const pageSize = 1000
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase.from('email_bounces').select('*, guests!email_bounces_guest_id_fkey(full_name)').order('bounced_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + pageSize - 1)
+    if (error) throw error
+    bounces.push(...(data || []).map(row => {
+      const guest = Array.isArray(row.guests) ? row.guests[0] : row.guests
+      return { id: Number(row.id), bouncedAt: row.bounced_at, email: row.email, guestId: row.guest_id, guestName: guest?.full_name || null, kind: row.kind, reason: row.reason, detail: row.detail || '', released: Boolean(row.released) }
+    }))
+    if (!data || data.length < pageSize) break
+  }
+  return bounces
+}
+
+// Invitados confirmados y cuándo se les mandó la entrada por correo.
+export async function getTicketLog(): Promise<TicketLogEntry[]> {
+  if (!supabase) return [
+    { guestId: 'demo-1', name: 'Mariana González', email: 'mariana@gcobalto.com', company: 'Grupo Cobalto', confirmedAt: '2026-11-17T20:10:00Z', ticketSentAt: '2026-11-17T20:10:05Z', token: null },
+    { guestId: 'demo-2', name: 'Jorge Villaseñor', email: 'jorge@vhnos.com', company: 'Villaseñor Hermanos', confirmedAt: '2026-11-17T22:30:00Z', ticketSentAt: null, token: null },
+  ]
+  const { data: activeEvent, error: eventError } = await supabase.from('events').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
+  if (eventError) throw eventError
+  if (!activeEvent) return []
+  const entries: TicketLogEntry[] = []
+  const pageSize = 1000
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase.from('guests').select('id, full_name, company, email, invitations(ticket_sent_at, token), rsvps!inner(status, submitted_at)').eq('event_id', activeEvent.id).eq('rsvps.status', 'confirmed').order('id').range(offset, offset + pageSize - 1)
+    if (error) throw error
+    entries.push(...(data || []).map(row => {
+      const invitation = Array.isArray(row.invitations) ? row.invitations[0] : row.invitations
+      const rsvp = Array.isArray(row.rsvps) ? row.rsvps[0] : row.rsvps
+      return { guestId: String(row.id), name: row.full_name || 'Invitado', email: row.email || '', company: row.company || '', confirmedAt: rsvp?.submitted_at || null, ticketSentAt: invitation?.ticket_sent_at || null, token: invitation?.token || null }
+    }))
+    if (!data || data.length < pageSize) break
+  }
+  return entries.sort((a, b) => (b.confirmedAt || '').localeCompare(a.confirmedAt || ''))
 }
 
 export async function markRegistrationReviewed(id: number, reviewed: boolean) {
