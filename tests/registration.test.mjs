@@ -19,7 +19,7 @@ function setup({ direct = false, cancelError = false, submitError = null, submit
     submitRsvp: async () => ({ data: submitData, error: submitError }),
     beginRsvp: async () => ({ data: beginResult, error: null }),
     cancelRsvp: async token => { calls.push(token); return { error: cancelError ? new Error('network') : null } },
-    registrationMessages: { notFound: 'No encontramos ese correo o teléfono', contactOfAnother: 'corresponde a la invitación de otra persona', linkOfAnother: 'está a nombre de otra persona', phoneInUse: 'Este teléfono ya está registrado con otro invitado', emailInUse: 'Este correo ya está registrado con otro invitado' },
+    registrationMessages: { notFound: 'No encontramos esta dirección de correo electrónico', phoneNotFound: 'No encontramos este número de teléfono', contactOfAnother: 'corresponde a la invitación de otra persona', linkOfAnother: 'está a nombre de otra persona', phoneInUse: 'Este teléfono ya está registrado con otro invitado', emailInUse: 'Este correo ya está registrado con otro invitado' },
     event: {}, Logo: 'Logo', Aniversario: 'Aniversario', Link: 'Link',
   }
   for (const name of ['Check', 'CalendarDays', 'ShieldCheck', 'Download', 'ArrowRight', 'MapPin', 'LockKeyhole']) context[name] = name
@@ -83,7 +83,7 @@ for (const [constraint, message] of [
   })
 }
 
-for (const [status, message] of [['not_found', /No encontramos ese correo o teléfono/], ['name_mismatch', /corresponde a la invitación de otra persona/]]) {
+for (const [status, message] of [['not_found', /No encontramos esta dirección de correo electrónico/], ['name_mismatch', /corresponde a la invitación de otra persona/]]) {
   test(`the home page does not hand out another guest's pass when begin_rsvp answers ${status}`, async () => {
     const app = setup({ beginResult: { status } }); let tree = app.render()
     nodes(tree).find(n => n.type === 'input' && n.props.type === 'email').props.onChange({ target: { value: 'otra@example.com' } })
