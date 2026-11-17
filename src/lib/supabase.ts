@@ -191,10 +191,11 @@ export async function createGuest(input: { name: string; email: string; phone: s
     if (eventError || !activeEvent) return { data: null, error: eventError || new Error('No active event'), demo: false }
     const { data: guest, error } = await supabase.from('guests').insert({ event_id: activeEvent.id, full_name: input.name.trim() || null, email: input.email.trim() || null, phone: input.phone.trim() || null, company: input.company.trim() || null }).select().single()
     if (error || !guest) return { data: null, error, demo: false }
-    // La invitación se crea aparte; en cargas masivas un fallo de red la dejaba sin crear y
-    // después el envío de correos se detenía en ese invitado. Se reintenta antes de rendirse.
+    // La base crea la invitación al guardar al invitado (trigger guests_create_invitation); aquí sólo
+    // se lee. Si no estuviera (base sin la migración), se crea y se reintenta antes de rendirse.
     const insertInvitation = () => supabase!.from('invitations').insert({ event_id: activeEvent.id, guest_id: guest.id }).select().single()
-    let { data: invitation, error: invitationError } = await insertInvitation()
+    let { data: invitation, error: invitationError } = await supabase.from('invitations').select().eq('event_id', activeEvent.id).eq('guest_id', guest.id).maybeSingle()
+    if (!invitation && !invitationError) ({ data: invitation, error: invitationError } = await insertInvitation())
     for (let attempt = 1; invitationError && attempt <= 3; attempt++) {
       await new Promise(resolve => setTimeout(resolve, 500 * attempt))
       const existing = await supabase.from('invitations').select().eq('event_id', activeEvent.id).eq('guest_id', guest.id).maybeSingle()
