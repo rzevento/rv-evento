@@ -9,3 +9,6 @@ tansa/
 supabase/.temp/
 .env.local.rtf
 node_modules/
+
+# Listas operativas con correos de invitados (el repo es público)
+rebotes/

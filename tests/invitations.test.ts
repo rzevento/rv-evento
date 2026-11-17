@@ -63,3 +63,15 @@ test('rejects local or unsafe public site URLs', () => {
     assert.throws(() => whatsappInvitationUrl('3312345678', 'Ana', 'token', site))
   }
 })
+
+test('pending tickets are only confirmed guests with email whose ticket is known unsent', async () => {
+  const { canSendPendingTicket, bulkDurationLabel } = await import('../src/lib/invitations.ts')
+  const confirmed = { email: 'a@example.com', status: 'Confirmado', ticketSentAt: null }
+  assert.equal(canSendPendingTicket(confirmed), true)
+  assert.equal(canSendPendingTicket({ ...confirmed, ticketSentAt: '2026-11-17T21:00:00Z' }), false)
+  assert.equal(canSendPendingTicket({ ...confirmed, ticketSentAt: undefined }), false)
+  assert.equal(canSendPendingTicket({ ...confirmed, status: 'Pendiente' }), false)
+  assert.equal(canSendPendingTicket({ ...confirmed, email: ' ' }), false)
+  assert.equal(bulkDurationLabel(130), '33 min')
+  assert.equal(bulkDurationLabel(460), '1 h 55 min')
+})

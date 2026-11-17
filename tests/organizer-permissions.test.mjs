@@ -63,14 +63,14 @@ function render(component, { role = 'staff', actorIsAdmin = role === 'admin', im
     Link: ({ children, to }) => React.createElement('a', { href: to }, children),
     Outlet: () => React.createElement('div', null, 'Contenido del panel'),
     ...Object.fromEntries(icons.map(name => [name, () => null])),
-    supabase: null, demoGuests: data, canSendPendingEmail: () => true, canSendReminderEmail: item => item.invite === 'Enviada' && item.status === 'Pendiente' && !item.reminderSentAt, whatsappPhone: value => value,
+    supabase: null, demoGuests: data, canSendPendingEmail: () => true, canSendReminderEmail: item => item.invite === 'Enviada' && item.status === 'Pendiente' && !item.reminderSentAt, whatsappPhone: value => value, canSendPendingTicket: () => true, BULK_EMAIL_PAUSE_MS: 15000, bulkDurationLabel: () => '1 min',
     localStorage: { getItem: () => null },
     event: { title: 'Evento de prueba', date: '3 de diciembre' },
   }
   vm.runInNewContext(compile(componentSource + `\nexports.Component = ${component};`), sandbox)
   return renderToStaticMarkup(React.createElement(OrganizerRoleContext.Provider, { value: role }, React.createElement(sandbox.exports.Component)))
 }
-const restrictedLabels = ['Nueva invitación', 'Descargar lista de invitados', 'Enviar todas las invitaciones', 'Enviar todos los recordatorios', 'Exportar CSV', 'Exportar filtrados', 'Cargar masivamente', 'Agregar invitado', 'Enviar correo', 'Reenviar invitación', 'Abrir WhatsApp', 'Marcar WhatsApp enviado']
+const restrictedLabels = ['Nueva invitación', 'Descargar lista de invitados', 'Enviar todas las invitaciones', 'Enviar todos los recordatorios', 'Enviar entradas pendientes', 'Exportar CSV', 'Exportar filtrados', 'Cargar masivamente', 'Agregar invitado', 'Enviar correo', 'Reenviar invitación', 'Abrir WhatsApp', 'Marcar WhatsApp enviado']
 for (const role of ['staff', 'viewer', null, 'unexpected']) {
   test(`${role}: summary and guest consultation remain available without invitation controls`, () => {
     const shell = render('AdminLayout', { role })

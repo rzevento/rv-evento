@@ -6,6 +6,22 @@ export function canSendReminderEmail(guest: { email: string; invite: string; sta
   return Boolean(guest.email.trim()) && guest.invite === 'Enviada' && guest.status === 'Pendiente' && !guest.reminderSentAt
 }
 
+/** Confirmed guests whose ticket email is known to be unsent (null). Unknown (undefined) is never pending. */
+export function canSendPendingTicket(guest: { email: string; status: string; ticketSentAt?: string | null }): boolean {
+  return Boolean(guest.email.trim()) && guest.status === 'Confirmado' && guest.ticketSentAt === null
+}
+
+/**
+ * Pause between bulk emails. Microsoft 365 restricts a mailbox that sends too many messages too fast
+ * (550 5.1.8 bad outbound sender, 2026-11-17); one every 15 s is 240 per hour, well under its limits.
+ */
+export const BULK_EMAIL_PAUSE_MS = 15_000
+
+export function bulkDurationLabel(count: number, pauseMs = BULK_EMAIL_PAUSE_MS): string {
+  const minutes = Math.max(1, Math.ceil(count * pauseMs / 60_000))
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`
+}
+
 /** Ten-digit local numbers belong to Mexico; other countries need a country code. */
 export function whatsappPhone(value: string): string | null {
   const input = value.trim()
