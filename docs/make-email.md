@@ -50,25 +50,27 @@ Si la cuenta remitente usa Gmail o Google Workspace, agrega **Gmail → Send an 
 
 > Estimados clientes y amigos:
 >
-> Tenemos el agrado de invitarlos a nuestra conferencia de Reformas Fiscales 2027.
+> Tenemos el agrado de invitarlos a nuestra conferencia de **Reformas Fiscales 2027**.
 >
-> Fecha: jueves 3 de diciembre de 2026.
-> Horario: de 4:00 a 7:30 p.m. (registro a partir de las 3:30 p.m.)
-> Lugar: Hotel RIU Guadalajara
+> **Fecha:** jueves 3 de diciembre de 2026
+> **Horario:** de 4:00 a 7:30 p.m. (registro a partir de las 3:30 p.m.)
+> **Lugar:** Hotel RIU Guadalajara
 >
-> Para su registro de asistencia, les solicitamos dar clic en el recuadro “Regístrese aquí”, utilizando la misma dirección de correo electrónico en la que recibieron este mensaje, ya que la invitación es personal e intransferible.
+> Para confirmar su asistencia, les solicitamos dar clic en el recuadro **“Regístrese aquí”** que aparece en la invitación de este correo y completar su registro con la misma dirección de correo electrónico en la que lo recibieron, ya que la invitación es personal e intransferible.
 >
-> Una vez que realice su registro, le enviaremos al mismo correo el código QR para ingresar a la conferencia.
+> Una vez completado su registro, recibirán en esa misma dirección el código QR que les permitirá acceder a la conferencia.
 >
-> Será un placer contar con su asistencia y saludarlos personalmente en el evento.
+> Será un placer contar con su asistencia y saludarlos personalmente durante el evento.
 >
 > Quedamos a sus órdenes para cualquier duda o aclaración.
+>
+> Atentamente,
 >
 > Ruvalcaba Villalobos y Compañía, S.C.
 
 Para un correo con diseño, usa como contenido HTML `emails/invitacion-make.html`; las imágenes (invitación, logo y 40 aniversario) se sirven desde `https://rv-evento.vercel.app/brand/`, así que deben estar publicadas en Vercel antes de enviar. El correo mide como máximo 640 px (también en Outlook de escritorio, con una tabla condicional `[if mso]`), para que el 40 aniversario no se vaya al otro extremo en pantallas grandes.
 
-**Invitación animada en el cuerpo, sin adjuntos**: una imagen adjunta no puede llevar links, así que la invitación va dentro del correo en tres piezas de `/brand/invitacion-correo/`: `arriba.gif` (logo y 40 con su brillo, 3.5 s), `centro.jpg` (título, 2027 y datos) y `abajo.gif` (leyendas, botón «Regístrese aquí» y logo de TaxPro animado, 7 s). Las tres van en una tabla de 564 px y cada una está ligada a `{{1.invitation_url}}`, así que cualquier clic en la invitación (y en particular en el botón) abre el registro personal del invitado. El escenario ya no tiene módulos HTTP ni adjuntos. El primer cuadro de cada GIF es idéntico a la invitación, porque Outlook de escritorio sólo muestra ese cuadro. Si cambia `invitacion.png`, hay que regenerar las piezas (cortes en y=276 y y=1124).
+**Invitación animada en el cuerpo, sin adjuntos**: una imagen adjunta no puede llevar links, así que la invitación va dentro del correo en tres piezas de `/brand/invitacion-correo/`: `arriba.gif` (logo y 40 con su brillo, 3.5 s), `centro.jpg` (título, 2027 y datos) y `abajo.gif` (leyendas, botón «Regístrese aquí» y logo de TaxPro animado, 7 s). Las tres van en una tabla de 564 px y cada una está ligada a `{{1.invitation_url}}`, así que cualquier clic en la invitación (y en particular en el botón) abre el registro personal del invitado. El escenario ya no tiene módulos HTTP ni adjuntos. El primer cuadro de cada GIF es idéntico a la invitación, porque Outlook de escritorio sólo muestra ese cuadro. Si cambia `invitacion.png`, hay que regenerar las piezas (cortes en y=276 y y=1124). Cada `<img>` lleva `height` (138, 424 y 132, la mitad exacta de cada pieza) y las celdas tienen fondo crema `#FBF8F1` con `mso-line-height-rule:exactly`: sin eso, Outlook de escritorio en Windows deja una línea blanca entre las piezas.
 
 Los corchetes son referencias para insertar los campos dinámicos; no dejarlos como texto literal. Envía un mensaje por invitado, con su propio enlace.
 
