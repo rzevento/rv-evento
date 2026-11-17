@@ -52,10 +52,6 @@ Si la cuenta remitente usa Gmail o Google Workspace, agrega **Gmail → Send an 
 >
 > Tenemos el agrado de invitarlos a nuestra conferencia de **Reformas Fiscales 2027**.
 >
-> **Fecha:** jueves 3 de diciembre de 2026
-> **Horario:** de 4:00 a 7:30 p.m. (registro a partir de las 3:30 p.m.)
-> **Lugar:** Hotel RIU Guadalajara
->
 > Para confirmar su asistencia, les solicitamos dar clic en el recuadro **“Regístrese aquí”** que aparece en la invitación de este correo y completar su registro con la misma dirección de correo electrónico en la que lo recibieron, ya que la invitación es personal e intransferible.
 >
 > Una vez completado su registro, recibirán en esa misma dirección el código QR que les permitirá acceder a la conferencia.
