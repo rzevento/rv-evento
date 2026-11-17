@@ -208,4 +208,3 @@ input::placeholder { color: #8C857A; }
   .tp-trazo { opacity: 0; }
   .button { transition: none; }
 }
-.register-card input[readonly] { background: #F6F0E2; color: var(--rv-gris-texto); cursor: default; }

@@ -16,8 +16,9 @@ function setup({ direct = false, cancelError = false, submitError = null, submit
     useState(initial) { const index = cursor++; if (!(index in state)) state[index] = initial; return [state[index], value => { state[index] = value }] },
     useEffect(fn) { if (!mounted) effects.push(fn) },
     getInvitationDetails: async () => ({ data: details, error: null }),
-    submitRsvp: async () => ({ data: submitData, error: submitError }),
-    beginRsvp: async () => ({ data: beginResult, error: null }),
+    sendTicket: async () => undefined,
+    submitRsvp: async input => { calls.push(['submit', input.token, input.email]); return { data: submitData, error: submitError } },
+    beginRsvp: async input => { calls.push(['begin', input.email]); return { data: beginResult, error: null } },
     cancelRsvp: async token => { calls.push(token); return { error: cancelError ? new Error('network') : null } },
     registrationMessages: { notFound: 'No encontramos esta dirección de correo electrónico', phoneNotFound: 'No encontramos este número de teléfono', contactOfAnother: 'corresponde a la invitación de otra persona', linkOfAnother: 'está a nombre de otra persona', phoneInUse: 'Este teléfono ya está registrado con otro invitado', emailInUse: 'Este correo ya está registrado con otro invitado' },
     event: {}, Logo: 'Logo', Aniversario: 'Aniversario', Link: 'Link',
@@ -105,13 +106,36 @@ test('a personal link typed with another person\'s name is not confirmed', async
   assert.doesNotMatch(text(tree), /Su lugar está reservado/)
 })
 
-test('a personal link keeps the invited email locked and rejects another email', async () => {
-  const app = setup({ direct: true, submitError: null, submitData: { status: 'email_mismatch' } })
+async function submitWithEmail(app, email) {
+  let tree = app.render()
+  nodes(tree).find(n => n.type === 'input' && n.props.type === 'email').props.onChange({ target: { value: email } })
+  tree = app.render()
+  await nodes(tree).find(n => n.type === 'form').props.onSubmit({ preventDefault() {} })
+  return app.render()
+}
+
+test('a personal link with an email that is not on the list is not registered', async () => {
+  const app = setup({ direct: true, submitData: { status: 'confirmed' }, beginResult: { status: 'not_found' } })
   app.render(); await app.load()
-  const email = nodes(app.render()).find(n => n.type === 'input' && n.props.type === 'email')
-  assert.equal(email.props.readOnly, true)
-  await nodes(app.render()).find(n => n.type === 'form').props.onSubmit({ preventDefault() {} })
-  const tree = app.render()
+  const tree = await submitWithEmail(app, 'nadie@ejemplo.com')
   assert.match(text(tree), /No encontramos esta dirección de correo electrónico/)
   assert.doesNotMatch(text(tree), /Su lugar está reservado/)
+  assert.deepEqual(app.calls.filter(c => c[0] === 'submit'), [])
+  assert.deepEqual(app.calls.filter(c => c[0] === 'begin'), [['begin', 'nadie@ejemplo.com']])
+})
+
+test('a personal link with another invited email registers the invitation of that email', async () => {
+  const app = setup({ direct: true, submitData: { status: 'confirmed' }, beginResult: { token: 'token-del-correo-nuevo', status: 'pending' } })
+  app.render(); await app.load()
+  const tree = await submitWithEmail(app, 'ana.nuevo@example.com')
+  assert.deepEqual(app.calls.filter(c => c[0] === 'submit'), [['submit', 'token-del-correo-nuevo', 'ana.nuevo@example.com']])
+  assert.match(text(tree), /Su lugar está reservado/)
+})
+
+test('a personal link keeping the invited email registers without a new lookup', async () => {
+  const app = setup({ direct: true, submitData: { status: 'confirmed' } })
+  app.render(); await app.load()
+  await nodes(app.render()).find(n => n.type === 'form').props.onSubmit({ preventDefault() {} })
+  assert.deepEqual(app.calls.filter(c => c[0] === 'begin'), [])
+  assert.deepEqual(app.calls.filter(c => c[0] === 'submit'), [['submit', 'personal-token', 'ana@example.com']])
 })
