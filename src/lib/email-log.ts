@@ -38,6 +38,7 @@ export function ticketState(entry: Pick<TicketLogEntry, 'guestId' | 'email' | 't
 export function bounceAdvice(bounce: EmailBounce): string {
   if (bounce.reason === 'direccion_invalida') return bounce.guestId ? 'Corrige el correo del invitado y vuelve a enviar.' : 'Esta dirección no está en la lista de invitados.'
   if (!bounce.guestId) return 'Esta dirección no está en la lista de invitados.'
+  if (bounce.reason === 'rechazado') return 'Su servidor de correo lo rechazó. Confirma el correo con el invitado o avísale por otro medio antes de reenviar.'
   if (bounce.released) return bounce.kind === 'entrada' ? 'Quedó pendiente: sale con «Enviar entradas pendientes».' : bounce.kind === 'invitacion' ? 'Quedó pendiente: sale con «Enviar todas las invitaciones».' : bounce.kind === 'recordatorio' ? 'Quedó pendiente: sale con «Enviar todos los recordatorios».' : 'Revisa el correo en la bandeja del remitente.'
   if (bounce.kind === 'invitacion') return 'No se volverá a enviar: ya respondió o ya se había reenviado.'
   return 'No se liberó: ya se había reenviado.'

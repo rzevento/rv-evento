@@ -35,4 +35,5 @@ test('qué hacer con cada rebote', () => {
   assert.match(bounceAdvice(bounce({ kind: 'invitacion' })), /Enviar todas las invitaciones/)
   assert.match(bounceAdvice(bounce({ kind: 'invitacion', released: false })), /ya respondió/)
   assert.match(bounceAdvice(bounce({ guestId: null })), /no está en la lista/)
+  assert.match(bounceAdvice(bounce({ reason: 'rechazado', released: false })), /lo rechazó/)
 })
