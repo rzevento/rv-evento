@@ -654,23 +654,33 @@ function GuestsPage() {
       let sent = 0
       let skipped = 0
       let total = 0
+      // Errores propios de un invitado (sin invitación, sin correo): se apartan y el envío sigue.
+      // Un envío no confirmado por Make sí detiene todo, para no mandar correos duplicados.
+      const guestProblems: string[] = []
+      const skippable = ['Este invitado no tiene una invitación asociada al evento', 'Este invitado no tiene correo electrónico', 'Invitado no encontrado o sin acceso']
       try {
         const current = await queryClient.fetchQuery({ queryKey: ['guests'], queryFn: guestQuery, staleTime: 0 })
         const pending = current.filter(canSendPendingEmail)
         total = pending.length
         for (const guest of pending) {
-          setBulkNotice(`Enviando correos: ${sent + skipped} de ${total}. Mantén esta página abierta.`)
+          setBulkNotice(`Enviando correos: ${sent + skipped + guestProblems.length} de ${total}. Mantén esta página abierta.`)
           const result = await sendInvitation(guest.id, false)
+          if (result.error && skippable.includes(result.error.message)) {
+            guestProblems.push(`${guest.email}: ${result.error.message}`)
+            continue
+          }
           if (result.error) throw new Error(`${guest.email}: ${result.error.message}`)
           if (!result.demo && result.data?.ok !== true) throw new Error(`${guest.email}: no se confirmó el envío. Revisa el historial de Make antes de reintentar.`)
           if (result.data?.already_sent) skipped += 1
           else sent += 1
           queryClient.setQueryData<Guest[]>(['guests'], guests => guests?.map(item => item.id === guest.id ? { ...item, invite: 'Enviada' } : item))
         }
-        setBulkNotice(total ? `${sent} correo(s) enviado(s).${skipped ? ` ${skipped} ya enviado(s) omitido(s).` : ''}` : 'No hay invitaciones por correo pendientes de envío.')
+        setBulkNotice(total ? `${sent} correo(s) enviado(s).${skipped ? ` ${skipped} ya enviado(s) omitido(s).` : ''}${guestProblems.length ? ` ${guestProblems.length} no se pudieron enviar.` : ''}` : 'No hay invitaciones por correo pendientes de envío.')
+        if (guestProblems.length) setActionError(`No se enviaron (revísalos y vuelve a intentar): ${guestProblems.join(' · ')}`)
       } catch (cause) {
-        setBulkNotice(`Envío detenido: ${sent} correo(s) enviado(s), ${skipped} omitido(s) y ${total - sent - skipped} sin completar.`)
-        setActionError(cause instanceof Error ? cause.message : 'No se pudo completar el envío. Revisa el historial de Make antes de reintentar.')
+        setBulkNotice(`Envío detenido: ${sent} correo(s) enviado(s), ${skipped + guestProblems.length} omitido(s) y ${total - sent - skipped - guestProblems.length} sin completar.`)
+        const reason = cause instanceof Error ? cause.message : 'No se pudo completar el envío. Revisa el historial de Make antes de reintentar.'
+        setActionError(guestProblems.length ? `${reason} · Además no se enviaron: ${guestProblems.join(' · ')}` : reason)
       } finally {
         bulkLock.current = false
         setBulkSending(false)
