@@ -95,7 +95,7 @@ export default function RegistrationLogPage() {
     outside: 'Cada intento de registro queda guardado, aunque la persona no esté en la lista o use el correo o teléfono de otro invitado. A ellas no se les entrega entrada: aparecen en «Fuera de la lista» para que el equipo las revise.',
     all: 'Cada intento de registro queda guardado, aunque la persona no esté en la lista o use el correo o teléfono de otro invitado. A ellas no se les entrega entrada: aparecen en «Fuera de la lista» para que el equipo las revise.',
     tickets: 'A cada invitado que confirma se le manda su entrada por correo. Aquí se ve si salió, si rebotó y por qué. Aunque el correo rebote, la persona sí ve su QR al confirmar y en su enlace personal.',
-    bounces: 'Cada aviso de «correo no entregado» que llega a la bandeja del remitente queda aquí. Si rebotó por el bloqueo de la cuenta remitente, el envío queda pendiente solo para volver a mandarlo; las direcciones inexistentes o rechazadas hay que revisarlas.',
+    bounces: 'Avisos de «correo no entregado» registrados de la bandeja del remitente (se cargan con SQL; no hay registro automático). Si rebotó por el bloqueo de la cuenta remitente, el envío queda pendiente solo para volver a mandarlo; las direcciones inexistentes o rechazadas hay que revisarlas.',
   }
   function exportCsv() {
     if (tab === 'tickets') downloadCsv(ticketCsv(visibleTickets, bounces), 'entradas-por-correo.csv')

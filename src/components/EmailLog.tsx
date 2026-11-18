@@ -36,7 +36,7 @@ export function TicketLogTable({ tickets, bounces, filter, canResend, onNotice, 
       if (released.error) throw released.error
       const result = await sendTicket(entry.token)
       if (result.error) throw result.error
-      onNotice(`Se reenvió la entrada a ${entry.email}. Si vuelve a rebotar, aparecerá aquí en unos minutos.`)
+      onNotice(`Se reenvió la entrada a ${entry.email}. Si rebota, el aviso «Undeliverable» llega en uno o dos minutos a la bandeja de Reformas Fiscales.`)
       await queryClient.invalidateQueries({ queryKey: ['ticket-log'] })
     } catch (cause) {
       onError(`No se pudo reenviar la entrada a ${entry.email}: ${cause instanceof Error ? cause.message : 'error desconocido'}`)
