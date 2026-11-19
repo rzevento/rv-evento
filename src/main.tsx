@@ -7,7 +7,7 @@ import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
 import { QrScanner } from './components/QrScanner'
 import { addEventMember, beginRsvp, cancelRsvp, checkInGuest, undoCheckInGuest, createGuest, updateGuest, deleteGuest, markGuestCancelled, markGuestConfirmed, findGuestByQr, getCurrentOrganizerProfile, getEventMembers, updateEventMemberRole, getInvitationToken, getInvitationDetails, markWhatsAppInvitationSent, releaseGuestTicket, sendInvitation, sendTicket, submitRsvp, supabase, getEmailBounces } from './lib/supabase'
-import { BULK_EMAIL_PAUSE_MS, bulkDurationLabel, canSendPendingEmail, canSendPendingTicket, canSendReminderEmail, whatsappInvitationUrl, whatsappPhone } from './lib/invitations'
+import { BULK_EMAIL_PAUSE_MS, INVALID_EMAIL_MESSAGE, bulkDurationLabel, canSendPendingEmail, canSendPendingTicket, canSendReminderEmail, isValidEmail, whatsappInvitationUrl, whatsappPhone } from './lib/invitations'
 import { OrganizerRoleContext, useCanManageInvitations, useCanSendInvitations } from './lib/organizer-permissions'
 import { blockWarning, recentAccountBlock } from './lib/email-log'
 import ImpersonationControl from './components/ImpersonationControl'
@@ -572,6 +572,7 @@ function GuestFormModal({ guest, onClose }: { guest?: Guest; onClose: () => void
     if (saveLock.current) return
     setError('')
     if (!form.email.trim() && !form.phone.trim()) { setError('Captura un correo o un celular.'); return }
+    if (form.email.trim() && !isValidEmail(form.email)) { setError('Revisa el correo: debe quedar como nombre@empresa.com, sin espacios.'); return }
     if (form.phone.trim() && !whatsappPhone(form.phone)) { setError('Revisa el celular: usa 10 dígitos para México o + y el código de país.'); return }
     saveLock.current = true
     setSaving(true)
@@ -696,6 +697,7 @@ function GuestsPage() {
         for (const [index, guest] of pending.entries()) {
           if (index > 0) await bulkPause()
           if (bulkStop.current) break
+          if (!isValidEmail(guest.email)) { guestProblems.push(`${guest.email}: ${INVALID_EMAIL_MESSAGE}`); continue }
           setBulkNotice(`Enviando correos: ${sent + skipped + guestProblems.length} de ${total}, uno cada ${BULK_EMAIL_PAUSE_MS / 1000} s. Mantén esta página abierta.`)
           const result = await sendInvitation(guest.id, false)
           if (result.error && skippable.includes(result.error.message)) {
@@ -729,6 +731,7 @@ function GuestsPage() {
       let sent = 0
       let skipped = 0
       let total = 0
+      const guestProblems: string[] = []
       try {
         const current = await queryClient.fetchQuery({ queryKey: ['guests'], queryFn: guestQuery, staleTime: 0 })
         const pending = current.filter(canSendReminderEmail)
@@ -744,7 +747,8 @@ function GuestsPage() {
         for (const [index, guest] of pending.entries()) {
           if (index > 0) await bulkPause()
           if (bulkStop.current) break
-          setBulkNotice(`Enviando recordatorios: ${sent + skipped} de ${total}, uno cada ${BULK_EMAIL_PAUSE_MS / 1000} s. Mantén esta página abierta.`)
+          if (!isValidEmail(guest.email)) { guestProblems.push(`${guest.email}: ${INVALID_EMAIL_MESSAGE}`); continue }
+          setBulkNotice(`Enviando recordatorios: ${sent + skipped + guestProblems.length} de ${total}, uno cada ${BULK_EMAIL_PAUSE_MS / 1000} s. Mantén esta página abierta.`)
           const result = await sendInvitation(guest.id, true, true)
           if (result.error?.message === 'Este invitado ya respondió; no se envió el recordatorio.') {
             skipped += 1
@@ -756,11 +760,13 @@ function GuestsPage() {
           else sent += 1
           queryClient.setQueryData<Guest[]>(['guests'], guests => guests?.map(item => item.id === guest.id ? { ...item, reminderSentAt: result.data?.reminder_sent_at || new Date().toISOString() } : item))
         }
-        const left = total - sent - skipped
-        setBulkNotice(`${bulkStop.current && left ? `Envío detenido. ${left} recordatorio(s) quedan pendientes. ` : ''}${sent} recordatorio(s) enviado(s).${skipped ? ` ${skipped} omitido(s) porque ya respondieron o tenían recordatorio.` : ''}`)
+        const left = total - sent - skipped - guestProblems.length
+        setBulkNotice(`${bulkStop.current && left ? `Envío detenido. ${left} recordatorio(s) quedan pendientes. ` : ''}${sent} recordatorio(s) enviado(s).${skipped ? ` ${skipped} omitido(s) porque ya respondieron o tenían recordatorio.` : ''}${guestProblems.length ? ` ${guestProblems.length} no se pudieron enviar.` : ''}`)
+        if (guestProblems.length) setActionError(`No se enviaron: ${guestProblems.join(' · ')}`)
       } catch (cause) {
-        setBulkNotice(`Envío detenido: ${sent} recordatorio(s) enviado(s), ${skipped} omitido(s) y ${total - sent - skipped} sin completar.`)
-        setActionError(cause instanceof Error ? cause.message : 'No se pudo completar el envío. Revisa el historial de Make antes de reintentar.')
+        setBulkNotice(`Envío detenido: ${sent} recordatorio(s) enviado(s), ${skipped + guestProblems.length} omitido(s) y ${total - sent - skipped - guestProblems.length} sin completar.`)
+        const reason = cause instanceof Error ? cause.message : 'No se pudo completar el envío. Revisa el historial de Make antes de reintentar.'
+        setActionError(guestProblems.length ? `${reason} · Además no se enviaron: ${guestProblems.join(' · ')}` : reason)
       } finally {
         finishBulk()
         await queryClient.invalidateQueries({ queryKey: ['guests'] })
@@ -794,6 +800,7 @@ function GuestsPage() {
         for (const [index, guest] of pending.entries()) {
           if (index > 0) await bulkPause()
           if (bulkStop.current) break
+          if (!isValidEmail(guest.email)) { guestProblems.push(`${guest.email}: ${INVALID_EMAIL_MESSAGE}`); continue }
           setBulkNotice(`Enviando entradas: ${sent + skipped + guestProblems.length} de ${total}, una cada ${BULK_EMAIL_PAUSE_MS / 1000} s. Mantén esta página abierta.`)
           const token = guest.invitationToken || (await getInvitationToken(guest.id)).data
           if (!token) { guestProblems.push(`${guest.email}: no se encontró su invitación`); continue }
@@ -809,7 +816,8 @@ function GuestsPage() {
         if (guestProblems.length) setActionError(`No se enviaron: ${guestProblems.join(' · ')}`)
       } catch (cause) {
         setBulkNotice(`Envío detenido: ${sent} entrada(s) enviada(s), ${skipped + guestProblems.length} omitida(s) y ${total - sent - skipped - guestProblems.length} sin completar.`)
-        setActionError(cause instanceof Error ? cause.message : 'No se pudo completar el envío. Revisa el historial de Make antes de reintentar.')
+        const reason = cause instanceof Error ? cause.message : 'No se pudo completar el envío. Revisa el historial de Make antes de reintentar.'
+        setActionError(guestProblems.length ? `${reason} · Además no se enviaron: ${guestProblems.join(' · ')}` : reason)
       } finally {
         finishBulk()
         await queryClient.invalidateQueries({ queryKey: ['guests'] })
@@ -987,6 +995,13 @@ function GuestsPage() {
         return
       }
       const imported = rows.filter(row => (emailIndex >= 0 && row[emailIndex]) || (phoneIndex >= 0 && row[phoneIndex])).map(row => ({ id: `csv-${crypto.randomUUID()}`, name: nameIndex >= 0 ? row[nameIndex] : '', email: emailIndex >= 0 ? row[emailIndex] : '', phone: phoneIndex >= 0 ? row[phoneIndex] : '', company: companyIndex >= 0 ? row[companyIndex] : 'Sin empresa', invite: 'Pendiente', status: 'Pendiente' as GuestStatus, checkedIn: false }))
+      // Un correo mal escrito no se carga: Make no puede enviarle y detendría el envío masivo.
+      const badEmails = imported.filter(guest => guest.email.trim() && !isValidEmail(guest.email)).map(guest => guest.email.trim())
+      if (badEmails.length) {
+        const keep = imported.filter(guest => !guest.email.trim() || isValidEmail(guest.email))
+        imported.splice(0, imported.length, ...keep)
+        window.alert(`${badEmails.length} fila(s) tienen el correo mal escrito y no se cargarán:\n\n${badEmails.join('\n')}\n\nCorrígelas en el archivo y vuelve a cargarlo (los que ya estén registrados se omiten), o agrégalas con «Agregar invitado».`)
+      }
       const normalizeEmail = (value: string) => value.trim().toLowerCase()
       const normalizePhone = (value: string) => value.replace(/\D/g, '')
       const existingEmails = new Set(data.map(guest => normalizeEmail(guest.email)).filter(Boolean))
@@ -1002,7 +1017,7 @@ function GuestsPage() {
         return !duplicate
       })
       const skipped = imported.length - newImported.length
-      if (imported.length === 0) window.alert('No encontré filas válidas. Cada invitado necesita nombre y correo o celular.')
+      if (imported.length === 0) window.alert(badEmails.length ? 'No quedaron filas para cargar.' : 'No encontré filas válidas. Cada invitado necesita nombre y correo o celular.')
       else if (newImported.length === 0) window.alert('Todos los contactos de este archivo ya están registrados.')
       else if (supabase) {
         importLock.current = true
@@ -1028,8 +1043,8 @@ function GuestsPage() {
           await queryClient.invalidateQueries({ queryKey: ['guests'] })
           importLock.current = false
           setImportProgress(null)
-          setBulkNotice(`Carga terminada: ${done - failed} de ${total} invitado(s) cargado(s).${skipped ? ` ${skipped} contacto(s) duplicado(s) omitido(s).` : ''}${failed ? ` ${failed} fila(s) no se pudieron guardar.` : ''}`)
-          if (failed) setActionError(`Primera fila con error: ${firstError}`)
+          setBulkNotice(`Carga terminada: ${done - failed} de ${total} invitado(s) cargado(s).${skipped ? ` ${skipped} contacto(s) duplicado(s) omitido(s).` : ''}${failed ? ` ${failed} fila(s) no se pudieron guardar.` : ''}${badEmails.length ? ` ${badEmails.length} con correo mal escrito no se cargaron.` : ''}`)
+          if (failed || badEmails.length) setActionError([failed ? `Primera fila con error: ${firstError}` : '', badEmails.length ? `Correos mal escritos (no se cargaron): ${badEmails.join(' · ')}` : ''].filter(Boolean).join(' · '))
         }
       } else queryClient.setQueryData<Guest[]>(['guests'], current => [...(current || demoGuests), ...newImported])
       e.target.value = ''

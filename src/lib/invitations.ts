@@ -1,3 +1,15 @@
+/**
+ * A deliverable-looking address: one @, no spaces, a dot in the domain and no "..".
+ * The 2026-11-18 upload had "contabilidad 5conradores…", "alberto.hawagruposarquis.mx" and "carlos.cano@ sansa…";
+ * Make cannot send to them and the bulk send stopped on the first one.
+ */
+export function isValidEmail(value: string): boolean {
+  const email = value.trim()
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !email.includes('..') && !/^\.|\.@|@\.|\.$/.test(email)
+}
+
+export const INVALID_EMAIL_MESSAGE = 'correo mal escrito; corrígelo con «Editar» y vuelve a enviar'
+
 export function canSendPendingEmail(guest: { email: string; invite: string; whatsappSentAt?: string | null }): boolean {
   return Boolean(guest.email.trim()) && guest.invite !== 'Enviada' && !guest.whatsappSentAt
 }

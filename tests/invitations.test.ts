@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { canSendPendingEmail, canSendReminderEmail, whatsappPhone, whatsappInvitationUrl } from '../src/lib/invitations.ts'
+import { canSendPendingEmail, canSendReminderEmail, isValidEmail, whatsappPhone, whatsappInvitationUrl } from '../src/lib/invitations.ts'
 
 test('bulk email only includes contacts with email and no recorded delivery in either channel', () => {
   const pending = { email: 'ana@example.com', invite: 'Pendiente' }
@@ -74,4 +74,13 @@ test('pending tickets are only confirmed guests with email whose ticket is known
   assert.equal(canSendPendingTicket({ ...confirmed, email: ' ' }), false)
   assert.equal(bulkDurationLabel(130), '33 min')
   assert.equal(bulkDurationLabel(460), '1 h 55 min')
+})
+
+test('recognizes malformed email addresses from the guest upload', () => {
+  for (const email of ['ana@example.com', ' contabilidad@5conradoresnunezyasociados.com ', 'carlos.cano@sansaconsultores.com.mx', 'a.b+c@sub.example.mx']) {
+    assert.equal(isValidEmail(email), true, email)
+  }
+  for (const email of ['', 'contabilidad 5conradoresnunezyasociados.com', 'alberto.hawagruposarquis.mx', 'carlos.cano@ sansaconsultores.com.mx', 'jhernandez@gdlplazaejecutivo..com', 'ana@example', 'ana@@example.com', 'ana@.example.com', 'ana.@example.com', 'ana@example.com.']) {
+    assert.equal(isValidEmail(email), false, email)
+  }
 })
