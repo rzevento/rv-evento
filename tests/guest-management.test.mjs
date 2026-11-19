@@ -11,7 +11,10 @@ const input = { name: ' Ana ', email: ' ana@example.com ', phone: ' ', company: 
 function setup({ missing = false, error = null, demo = false } = {}) {
   const calls = []
   const api = {}
-  const supabase = { from(table) {
+  const supabase = { async rpc(name, args) {
+    calls.push({ rpc: name, args })
+    return { data: missing ? { status: 'not_found' } : error ? null : { status: 'ok' }, error }
+  }, from(table) {
     const call = { table }
     calls.push(call)
     const chain = {
@@ -39,16 +42,19 @@ test('editing refuses to remove both contact methods without touching the databa
   assert.ok((await api.updateGuest('guest-1', { ...input, email: ' ', phone: '' })).error)
   assert.equal(calls.length, 0)
 })
-test('deletion is scoped to a single guest; dependent records use database cascades', async () => {
+test('deletion goes through delete_guest for a single guest so the database archives it with the reason', async () => {
   const { api, calls } = setup()
-  assert.equal((await api.deleteGuest('guest-1')).error, null)
-  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ table: 'guests', operation: 'delete', filter: { key: 'id', value: 'guest-1' } }])
+  assert.equal((await api.deleteGuest('guest-1', '  Duplicado ')).error, null)
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ rpc: 'delete_guest', args: { target_guest_id: 'guest-1', reason: 'Duplicado' } }])
+  const blank = setup()
+  await blank.api.deleteGuest('guest-1', '  ')
+  assert.equal(blank.calls[0].args.reason, null)
 })
 test('missing or denied rows never report successful edit or deletion', async () => {
   for (const options of [{ missing: true }, { error: { code: '42501', message: 'denied' } }, { error: { code: '23505', message: 'duplicate' } }]) {
     const { api } = setup(options)
     assert.ok((await api.updateGuest('guest-1', input)).error)
-    assert.ok((await api.deleteGuest('guest-1')).error)
+    assert.ok((await api.deleteGuest('guest-1', '')).error)
   }
 })
 test('manual cancellation uses the guest event and supports guests without an existing RSVP', async () => {
@@ -90,7 +96,7 @@ test('confirmation does not write when the guest cannot be read', async () => {
 })
 test('demo guest actions never write to the database', async () => {
   const { api, calls } = setup({ demo: true })
-  for (const result of [await api.updateGuest('guest-1', input), await api.deleteGuest('guest-1'), await api.markGuestCancelled('guest-1'), await api.markGuestConfirmed('guest-1')]) {
+  for (const result of [await api.updateGuest('guest-1', input), await api.deleteGuest('guest-1', ''), await api.markGuestCancelled('guest-1'), await api.markGuestConfirmed('guest-1')]) {
     assert.equal(result.demo, true)
     assert.equal(result.error, null)
   }

@@ -934,16 +934,18 @@ function GuestsPage() {
   }
   async function removeGuest(guest: Guest) {
     if (deleteLock.current || cancelLock.current || confirmLock.current || bulkLock.current || individualSends || arrivalLoading) return
-    if (!window.confirm(`¿Eliminar a ${guest.name} (${guest.email || guest.phone})?\n\nTambién se eliminarán su invitación, su respuesta y su registro de llegada. Su enlace personal dejará de funcionar. Esta acción no se puede deshacer.`)) return
+    const reason = window.prompt(`¿Eliminar a ${guest.name} (${guest.email || guest.phone})?\n\nDejará de aparecer en la lista y en los conteos, y su enlace personal dejará de funcionar. Quedará registrado en Bitácora → Eliminados con su fecha de alta y la de hoy.\n\nMotivo (opcional):`, '')
+    if (reason === null) return
     deleteLock.current = true
     setDeletingGuest(guest.id)
     setActionError('')
     try {
-      const result = await deleteGuest(guest.id)
+      const result = await deleteGuest(guest.id, reason)
       if (result.error) throw result.error
       await queryClient.cancelQueries({ queryKey: ['guests'] })
       queryClient.setQueryData<Guest[]>(['guests'], current => (current || demoGuests).filter(item => item.id !== guest.id))
-      if (!result.demo) await queryClient.invalidateQueries({ queryKey: ['guests'] })
+      if (!result.demo) await Promise.all([queryClient.invalidateQueries({ queryKey: ['guests'] }), queryClient.invalidateQueries({ queryKey: ['deleted-guests'] })])
+      setBulkNotice(`${guest.name} se eliminó de la lista. Queda en Bitácora → Eliminados.`)
     } catch {
       setActionError('No se pudo eliminar al invitado. Revisa tu conexión y permisos e intenta nuevamente.')
     } finally { deleteLock.current = false; setDeletingGuest(null) }

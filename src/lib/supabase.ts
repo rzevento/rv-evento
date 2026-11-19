@@ -271,13 +271,48 @@ export async function updateGuest(guestId: string, input: { name: string; email:
   })
 }
 
-export async function deleteGuest(guestId: string) {
+// Sólo administradores. La base guarda una copia en la bitácora de eliminados (alta, eliminación,
+// quién, motivo y cómo estaba) y después borra al invitado con su invitación, respuesta y llegada.
+export async function deleteGuest(guestId: string, reason: string) {
   return organizerAction(async () => {
     if (!supabase) return { data: null, error: null, demo: true }
-    // Related invitations, RSVPs and check-ins are deleted by the existing foreign keys.
-    const { data, error } = await supabase.from('guests').delete().eq('id', guestId).select('id').single()
-    return { data, error: error || (!data ? new Error('No se pudo eliminar al invitado. Revisa tu acceso.') : null), demo: false }
+    const { data, error } = await supabase.rpc('delete_guest', { target_guest_id: guestId, reason: reason.trim() || null })
+    const status = (data as { status?: string } | null)?.status
+    return { data, error: error || (status !== 'ok' ? new Error('No se pudo eliminar al invitado. Actualiza la página.') : null), demo: false }
   })
+}
+
+export type DeletedGuest = {
+  id: number
+  guestId: string
+  name: string
+  email: string
+  phone: string
+  company: string
+  createdAt: string | null
+  deletedAt: string
+  deletedBy: string | null
+  reason: string | null
+  invitationSentAt: string | null
+  whatsappSentAt: string | null
+  rsvpStatus: string | null
+  confirmedAt: string | null
+  checkedInAt: string | null
+}
+
+export async function getDeletedGuests(): Promise<DeletedGuest[]> {
+  if (!supabase) return [
+    { id: 1, guestId: 'demo-9', name: 'Pedro Duplicado', email: 'pedro@ejemplo.com', phone: '', company: 'Ejemplo SA', createdAt: '2026-11-17T20:30:00Z', deletedAt: '2026-11-19T17:05:00Z', deletedBy: 'María Ríos', reason: 'Registrado dos veces', invitationSentAt: '2026-11-17T21:00:00Z', whatsappSentAt: null, rsvpStatus: null, confirmedAt: null, checkedInAt: null },
+  ]
+  const entries: DeletedGuest[] = []
+  const pageSize = 1000
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase.from('deleted_guests').select('id, guest_id, full_name, email, phone, company, created_at, deleted_at, deleted_by_name, reason, invitation_sent_at, whatsapp_sent_at, rsvp_status, confirmed_at, checked_in_at').order('deleted_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + pageSize - 1)
+    if (error) throw error
+    entries.push(...(data || []).map(row => ({ id: Number(row.id), guestId: String(row.guest_id), name: row.full_name || '', email: row.email || '', phone: row.phone || '', company: row.company || '', createdAt: row.created_at, deletedAt: row.deleted_at, deletedBy: row.deleted_by_name, reason: row.reason, invitationSentAt: row.invitation_sent_at, whatsappSentAt: row.whatsapp_sent_at, rsvpStatus: row.rsvp_status, confirmedAt: row.confirmed_at, checkedInAt: row.checked_in_at })))
+    if (!data || data.length < pageSize) break
+  }
+  return entries
 }
 
 export async function markGuestCancelled(guestId: string) {
