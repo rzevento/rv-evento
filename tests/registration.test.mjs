@@ -20,7 +20,7 @@ function setup({ cancelError = false, submitError = null, submitData = null, beg
     submitRsvp: async input => { calls.push(['submit', input.token, input.email]); return { data: submitData, error: submitError } },
     beginRsvp: async input => { calls.push(['begin', input.email]); return { data: beginResult, error: null } },
     cancelRsvp: async token => { calls.push(token); return { error: cancelError ? new Error('network') : null } },
-    registrationMessages: { notFound: 'No encontramos esta dirección de correo electrónico', phoneNotFound: 'No encontramos este número de teléfono', contactOfAnother: 'corresponde a la invitación de otra persona', phoneInUse: 'Este teléfono ya está registrado con otro invitado', emailInUse: 'Este correo ya está registrado con otro invitado' },
+    registrationMessages: { notFound: 'No encontramos esta dirección de correo electrónico', phoneNotFound: 'No encontramos este número de teléfono', contactOfAnother: 'corresponde a la invitación de otra persona', nameReview: 'no coincide con su nombre', phoneInUse: 'Este teléfono ya está registrado con otro invitado', emailInUse: 'Este correo ya está registrado con otro invitado' },
     event: {}, Logo: 'Logo', Aniversario: 'Aniversario', Link: 'Link',
   }
   for (const name of ['Check', 'CalendarDays', 'ShieldCheck', 'Download', 'ArrowRight', 'MapPin', 'LockKeyhole']) context[name] = name
@@ -95,7 +95,7 @@ for (const [constraint, message] of [
   })
 }
 
-for (const [status, message] of [['not_found', /No encontramos esta dirección de correo electrónico/], ['name_mismatch', /corresponde a la invitación de otra persona/]]) {
+for (const [status, message] of [['not_found', /No encontramos esta dirección de correo electrónico/], ['name_mismatch', /corresponde a la invitación de otra persona/], ['name_review', /no coincide con su nombre/]]) {
   test(`the registration page does not hand out another guest's pass when begin_rsvp answers ${status}`, async () => {
     const app = setup({ beginResult: { status } })
     const tree = await submit(app, { email: 'otra@example.com', name: 'Luis Gómez' })
@@ -109,4 +109,10 @@ test('a name that does not match at submit time is not confirmed', async () => {
   const tree = await submit(app)
   assert.match(text(tree), /corresponde a la invitación de otra persona/)
   assert.doesNotMatch(text(tree), /Su lugar está reservado/)
+})
+test('a guest without a name whose email does not fit the typed name goes to review at submit time', async () => {
+  const app = setup({ beginResult: { token: 'personal-token', status: 'pending' }, submitData: { status: 'name_review' } })
+  const tree = await submit(app)
+  assert.match(text(tree), /no coincide con su nombre/)
+  assert.doesNotMatch(text(tree), /Su lugar está reservado|Descargar entrada/)
 })

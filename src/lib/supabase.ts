@@ -87,7 +87,7 @@ export async function submitRsvp(input: { token: string; name: string; email: st
   })
 }
 
-export type BeginRsvpStatus = 'pending' | 'already_registered' | 'not_found' | 'name_mismatch' | 'name_required'
+export type BeginRsvpStatus = 'pending' | 'already_registered' | 'not_found' | 'name_mismatch' | 'name_required' | 'name_review'
 
 export async function beginRsvp(input: { name: string; email: string; phone: string; company: string }) {
   if (!supabase) return { data: { token: 'demo-token', status: 'pending' as BeginRsvpStatus }, error: null, demo: true }

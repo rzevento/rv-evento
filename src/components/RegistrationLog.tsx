@@ -43,6 +43,7 @@ function detail(entry: RegistrationLogEntry) {
 }
 
 function baseDetail(entry: RegistrationLogEntry) {
+  if (entry.result === 'contacto_de_otro' && !entry.previousName && entry.previousEmail) return `La invitación de ${entry.previousEmail} no tenía nombre y el nombre escrito no se parece a ese correo. No se le entregó entrada: revisen si es la persona invitada (por ejemplo, un correo de la empresa o de su asistente).`
   if (entry.result === 'contacto_de_otro') return `Ese correo o teléfono es de ${entry.previousName || entry.guestName || 'otro invitado'}. No se le entregó entrada.`
   if (entry.result === 'contacto_en_uso') return `Intentaba confirmar la invitación de ${entry.previousName || entry.guestName || 'un invitado'} con un correo o teléfono que ya tiene otro invitado.`
   if (entry.result === 'no_encontrado') return 'Su correo o teléfono no está en la lista de invitados. No se le entregó entrada.'

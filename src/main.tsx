@@ -196,6 +196,7 @@ const registrationMessages = {
   notFound: 'No encontramos esta dirección de correo electrónico en nuestra lista de invitados. Le recomendamos verificar que esté escrita correctamente. Si el problema persiste, por favor comuníquese con el socio de la firma que lo atiende, quien con gusto lo apoyará.',
   phoneNotFound: 'No encontramos este número de teléfono en nuestra lista de invitados. Le recomendamos verificar que esté escrito correctamente. Si el problema persiste, por favor comuníquese con el socio de la firma que lo atiende, quien con gusto lo apoyará.',
   contactOfAnother: 'Ese correo o teléfono corresponde a la invitación de otra persona, así que no podemos emitir su entrada con él. Guardamos sus datos para que el equipo organizador los revise. Si usted también fue invitado, use su propio correo o teléfono.',
+  nameReview: 'Esta invitación se envió a un correo que no coincide con su nombre, así que no podemos emitir su entrada en este momento. Guardamos sus datos y el equipo organizador revisará su registro y se pondrá en contacto con usted. Si usted fue invitado con otro correo o teléfono, regístrese con ese.',
   phoneInUse: 'Este teléfono ya está registrado con otro invitado. Verifique el número o contacte al organizador para recibir ayuda.',
   emailInUse: 'Este correo ya está registrado con otro invitado. Verifique el correo o contacte al organizador para recibir ayuda.',
 }
@@ -249,6 +250,7 @@ function RegistrationPage() {
     if (lookup.error || !status) { setSubmitting(false); setError('No pudimos verificar su registro. Intente de nuevo.'); return }
     if (status === 'not_found') { setSubmitting(false); setError(form.email.trim() ? registrationMessages.notFound : registrationMessages.phoneNotFound); return }
     if (status === 'name_mismatch' || status === 'name_required') { setSubmitting(false); setError(registrationMessages.contactOfAnother); return }
+    if (status === 'name_review') { setSubmitting(false); setError(registrationMessages.nameReview); return }
     const currentToken = lookup.data?.token || ''
     if (status === 'already_registered') {
       const details = await getInvitationDetails(currentToken)
@@ -272,8 +274,8 @@ function RegistrationPage() {
     const result = await submitRsvp({ token: currentToken, ...form })
     setSubmitting(false)
     const outcome = (result.data || null) as { status?: string; field?: string } | null
-    if (outcome?.status === 'name_mismatch') {
-      setError(registrationMessages.contactOfAnother)
+    if (outcome?.status === 'name_mismatch' || outcome?.status === 'name_review') {
+      setError(outcome.status === 'name_review' ? registrationMessages.nameReview : registrationMessages.contactOfAnother)
       return
     }
     if (outcome?.status === 'email_mismatch') {
