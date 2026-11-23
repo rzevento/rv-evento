@@ -194,7 +194,6 @@ function PublicShell() {
 
 const registrationMessages = {
   notFound: 'No encontramos esta dirección de correo electrónico en nuestra lista de invitados. Le recomendamos verificar que esté escrita correctamente. Si el problema persiste, por favor comuníquese con el socio de la firma que lo atiende, quien con gusto lo apoyará.',
-  phoneNotFound: 'No encontramos este número de teléfono en nuestra lista de invitados. Le recomendamos verificar que esté escrito correctamente. Si el problema persiste, por favor comuníquese con el socio de la firma que lo atiende, quien con gusto lo apoyará.',
   contactOfAnother: 'Ese correo o teléfono corresponde a la invitación de otra persona, así que no podemos emitir su entrada con él. Guardamos sus datos para que el equipo organizador los revise. Si usted también fue invitado, use su propio correo o teléfono.',
   nameReview: 'Esta invitación se envió a un correo que no coincide con su nombre, así que no podemos emitir su entrada en este momento. Guardamos sus datos y el equipo organizador revisará su registro y se pondrá en contacto con usted. Si usted fue invitado con otro correo o teléfono, regístrese con ese.',
   phoneInUse: 'Este teléfono ya está registrado con otro invitado. Verifique el número o contacte al organizador para recibir ayuda.',
@@ -231,14 +230,22 @@ function RegistrationPage() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (submitting) return
-    if (!form.email.trim() && !form.phone.trim()) {
-      setError('Escriba su correo o teléfono para identificar su registro.')
+    // Todos los campos son obligatorios, esté o no el correo en la lista. El correo es la llave con
+    // que se busca la invitación; el nombre además comprueba que la invitación es de quien se registra.
+    if (!form.name.trim()) {
+      setError('Escriba su nombre completo.')
       return
     }
-    // El nombre se pide antes de buscar la invitación: con él se comprueba que el correo o teléfono
-    // es de quien se registra y no se entrega la entrada (el QR) de otra persona.
-    if (!form.name.trim()) {
-      setError('Escriba su nombre completo para identificar su registro.')
+    if (!isValidEmail(form.email)) {
+      setError(form.email.trim() ? 'Revise su correo electrónico: parece estar mal escrito.' : 'Escriba el correo electrónico en el que recibió la invitación.')
+      return
+    }
+    if (!whatsappPhone(form.phone)) {
+      setError(form.phone.trim() ? 'Revise su teléfono: use 10 dígitos para México o + y el código de país para otros países.' : 'Escriba su teléfono.')
+      return
+    }
+    if (!form.company.trim()) {
+      setError('Escriba el nombre de su empresa.')
       return
     }
     setSubmitting(true)
@@ -248,7 +255,7 @@ function RegistrationPage() {
     const lookup = await beginRsvp(form)
     const status = lookup.data?.status
     if (lookup.error || !status) { setSubmitting(false); setError('No pudimos verificar su registro. Intente de nuevo.'); return }
-    if (status === 'not_found') { setSubmitting(false); setError(form.email.trim() ? registrationMessages.notFound : registrationMessages.phoneNotFound); return }
+    if (status === 'not_found') { setSubmitting(false); setError(registrationMessages.notFound); return }
     if (status === 'name_mismatch' || status === 'name_required') { setSubmitting(false); setError(registrationMessages.contactOfAnother); return }
     if (status === 'name_review') { setSubmitting(false); setError(registrationMessages.nameReview); return }
     const currentToken = lookup.data?.token || ''
@@ -264,11 +271,6 @@ function RegistrationPage() {
       setAlreadyRegistered(true)
       setSubmitting(false)
       setSent(true)
-      return
-    }
-    if (!form.company.trim()) {
-      setSubmitting(false)
-      setError('Para completar el registro necesitamos su nombre y empresa.')
       return
     }
     const result = await submitRsvp({ token: currentToken, ...form })

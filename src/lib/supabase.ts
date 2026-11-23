@@ -93,7 +93,7 @@ export async function beginRsvp(input: { name: string; email: string; phone: str
   if (!supabase) return { data: { token: 'demo-token', status: 'pending' as BeginRsvpStatus }, error: null, demo: true }
   const email = input.email.trim(), phone = input.phone.trim()
   const { data, error } = await supabase.rpc('begin_rsvp', {
-    guest_contact: email || phone,
+    guest_contact: email, // el correo es la llave del registro
     guest_name: input.name.trim(),
     guest_email: email || null,
     guest_phone: phone || null,

@@ -21,6 +21,8 @@ function setup({ cancelError = false, submitError = null, submitData = null, beg
     beginRsvp: async input => { calls.push(['begin', input.email]); return { data: beginResult, error: null } },
     cancelRsvp: async token => { calls.push(token); return { error: cancelError ? new Error('network') : null } },
     registrationMessages: { notFound: 'No encontramos esta dirección de correo electrónico', phoneNotFound: 'No encontramos este número de teléfono', contactOfAnother: 'corresponde a la invitación de otra persona', nameReview: 'no coincide con su nombre', phoneInUse: 'Este teléfono ya está registrado con otro invitado', emailInUse: 'Este correo ya está registrado con otro invitado' },
+    isValidEmail: value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()),
+    whatsappPhone: value => /^\+?[\d\s().-]{10,}$/.test(value.trim()) ? value : null,
     event: {}, Logo: 'Logo', Aniversario: 'Aniversario', Link: 'Link',
   }
   for (const name of ['Check', 'CalendarDays', 'ShieldCheck', 'Download', 'ArrowRight', 'MapPin', 'LockKeyhole']) context[name] = name
@@ -34,8 +36,10 @@ function setup({ cancelError = false, submitError = null, submitData = null, beg
 function nodes(tree) { return !tree || typeof tree !== 'object' ? [] : [tree, ...(tree.children || []).flat(Infinity).flatMap(nodes)] }
 function text(tree) { return typeof tree === 'string' ? tree : (tree?.children || []).flat(Infinity).map(text).join(' ') }
 
-async function submit(app, { email = 'ana@example.com', name = 'Ana Pérez', company = 'Empresa' } = {}) {
+async function submit(app, { email = 'ana@example.com', name = 'Ana Pérez', phone = '3312345678', company = 'Empresa' } = {}) {
   let tree = app.render()
+  nodes(tree).find(n => n.type === 'input' && n.props.type === 'tel').props.onChange({ target: { value: phone } })
+  tree = app.render()
   nodes(tree).find(n => n.type === 'input' && n.props.type === 'email').props.onChange({ target: { value: email } })
   tree = app.render()
   nodes(tree).find(n => n.type === 'input' && n.props.autoComplete === 'name').props.onChange({ target: { value: name } })
@@ -116,3 +120,17 @@ test('a guest without a name whose email does not fit the typed name goes to rev
   assert.match(text(tree), /no coincide con su nombre/)
   assert.doesNotMatch(text(tree), /Su lugar está reservado|Descargar entrada/)
 })
+for (const [field, values, message] of [
+  ['name', { name: '' }, /Escriba su nombre completo/],
+  ['email', { email: '' }, /Escriba el correo electrónico en el que recibió la invitación/],
+  ['bad email', { email: 'ana@example' }, /parece estar mal escrito/],
+  ['phone', { phone: '' }, /Escriba su teléfono/],
+  ['company', { company: '' }, /Escriba el nombre de su empresa/],
+]) {
+  test(`every field is required before looking up the invitation: ${field}`, async () => {
+    const app = setup({ beginResult: { token: 'personal-token', status: 'pending' }, submitData: { status: 'confirmed' } })
+    const tree = await submit(app, values)
+    assert.match(text(tree), message)
+    assert.deepEqual(app.calls, [])
+  })
+}
