@@ -203,6 +203,12 @@ const registrationMessages = {
 // El registro es siempre general: cada invitado escribe su correo (o teléfono) y su nombre, y con eso se
 // busca su invitación. Así una invitación reenviada a otro invitado no muestra los datos ni el registro de
 // quien la recibió primero.
+// Teléfono del registro: sólo 10 dígitos. Si se pega con +52 o 52 al inicio, se quita.
+function tenDigitPhone(value: string) {
+  const digits = value.replace(/\D/g, '')
+  return (digits.length > 10 && digits.startsWith('52') ? digits.slice(2) : digits).slice(0, 10)
+}
+
 function RegistrationPage() {
   const [resolvedToken, setResolvedToken] = useState('')
   const [sent, setSent] = useState(false)
@@ -240,8 +246,9 @@ function RegistrationPage() {
       setError(form.email.trim() ? 'Revise su correo electrónico: parece estar mal escrito.' : 'Escriba el correo electrónico en el que recibió la invitación.')
       return
     }
-    if (!whatsappPhone(form.phone)) {
-      setError(form.phone.trim() ? 'Revise su teléfono: use 10 dígitos para México o + y el código de país para otros países.' : 'Escriba su teléfono.')
+    // Teléfono sólo a 10 dígitos (sin lada internacional ni +52).
+    if (!/^\d{10}$/.test(form.phone)) {
+      setError(form.phone ? 'Su teléfono debe tener 10 dígitos.' : 'Escriba su teléfono a 10 dígitos.')
       return
     }
     if (!form.company.trim()) {
@@ -308,7 +315,7 @@ function RegistrationPage() {
   async function downloadPass() {
     await downloadGuestPass(form.name, resolvedToken)
   }
-  return <main className="register-page"><section className="register-intro"><div className="rv-intro-top"><p className="eyebrow">{event.eyebrow}</p></div><h1 className="rv-title">{event.title}</h1><img className="rv-year" src="/brand/2027-ciudad.png" alt={event.accent} width={946} height={334} /><hr className="rv-divisor" /><div className="rv-columnas"><p className="rv-dato">{event.date}</p><p><span className="rv-dato">{event.time}</span><span className="rv-dato-secundario">{event.registration}</span></p><p><span className="rv-dato">{event.venue}</span><span className="rv-dato-secundario">{event.city}</span></p></div><p className="rv-aviso">{event.notice}</p></section><section className="register-card"><div className="card-top"><p className="eyebrow">Registro</p><h2>Confirme su asistencia</h2><p>Complete sus datos para reservar su lugar.</p></div><form onSubmit={handleSubmit}><label>Nombre completo<input autoComplete="name" disabled={submitting} value={form.name} onChange={update('name')} placeholder="Su nombre" /></label><label>Correo electrónico<input type="email" autoComplete="email" disabled={submitting} value={form.email} onChange={update('email')} placeholder="nombre@empresa.com" /></label><label>Teléfono<input type="tel" autoComplete="tel" disabled={submitting} value={form.phone} onChange={update('phone')} placeholder="México: 10 dígitos · Otros: +código de país" /></label><label>Empresa<input autoComplete="organization" disabled={submitting} value={form.company} onChange={update('company')} placeholder="Nombre de la empresa" /></label>{error && <p className="form-error" role="alert">{error}</p>}<button className="button button-orange" type="submit" disabled={submitting}>{submitting ? 'Guardando…' : 'Confirmar registro'} {!submitting && <ArrowRight size={17} />}</button></form><p className="privacy-note"><ShieldCheck size={15} /> Sus datos se utilizarán únicamente para la organización del evento.</p></section></main>
+  return <main className="register-page"><section className="register-intro"><div className="rv-intro-top"><p className="eyebrow">{event.eyebrow}</p></div><h1 className="rv-title">{event.title}</h1><img className="rv-year" src="/brand/2027-ciudad.png" alt={event.accent} width={946} height={334} /><hr className="rv-divisor" /><div className="rv-columnas"><p className="rv-dato">{event.date}</p><p><span className="rv-dato">{event.time}</span><span className="rv-dato-secundario">{event.registration}</span></p><p><span className="rv-dato">{event.venue}</span><span className="rv-dato-secundario">{event.city}</span></p></div><p className="rv-aviso">{event.notice}</p></section><section className="register-card"><div className="card-top"><p className="eyebrow">Registro</p><h2>Confirme su asistencia</h2><p>Complete sus datos para reservar su lugar.</p></div><form onSubmit={handleSubmit}><label>Nombre completo<input autoComplete="name" disabled={submitting} value={form.name} onChange={update('name')} placeholder="Su nombre" /></label><label>Correo electrónico<input type="email" autoComplete="email" disabled={submitting} value={form.email} onChange={update('email')} /></label><label>Teléfono<input type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={10} disabled={submitting} value={form.phone} onChange={e => setForm({ ...form, phone: tenDigitPhone(e.target.value) })} placeholder="10 dígitos" /></label><label>Empresa<input autoComplete="organization" disabled={submitting} value={form.company} onChange={update('company')} placeholder="Nombre de la empresa" /></label>{error && <p className="form-error" role="alert">{error}</p>}<button className="button button-orange" type="submit" disabled={submitting}>{submitting ? 'Guardando…' : 'Confirmar registro'} {!submitting && <ArrowRight size={17} />}</button></form><p className="privacy-note"><ShieldCheck size={15} /> Sus datos se utilizarán únicamente para la organización del evento.</p></section></main>
 }
 
 

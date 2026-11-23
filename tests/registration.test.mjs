@@ -6,7 +6,8 @@ import ts from 'typescript'
 
 const source = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8')
 const start = source.indexOf('function RegistrationPage(')
-const component = source.slice(start, source.indexOf('\n}\n', start) + 3)
+const helperStart = source.indexOf('function tenDigitPhone(')
+const component = source.slice(helperStart, source.indexOf('\n}\n', helperStart) + 3) + source.slice(start, source.indexOf('\n}\n', start) + 3)
 const compiled = ts.transpileModule(component, { compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React } }).outputText
 function setup({ cancelError = false, submitError = null, submitData = null, beginResult = { token: 'personal-token', status: 'already_registered' } } = {}) {
   const state = [], calls = []
@@ -124,7 +125,8 @@ for (const [field, values, message] of [
   ['name', { name: '' }, /Escriba su nombre completo/],
   ['email', { email: '' }, /Escriba el correo electrónico en el que recibió la invitación/],
   ['bad email', { email: 'ana@example' }, /parece estar mal escrito/],
-  ['phone', { phone: '' }, /Escriba su teléfono/],
+  ['phone', { phone: '' }, /Escriba su teléfono a 10 dígitos/],
+  ['short phone', { phone: '331234' }, /debe tener 10 dígitos/],
   ['company', { company: '' }, /Escriba el nombre de su empresa/],
 ]) {
   test(`every field is required before looking up the invitation: ${field}`, async () => {
@@ -134,3 +136,12 @@ for (const [field, values, message] of [
     assert.deepEqual(app.calls, [])
   })
 }
+test('the phone field keeps only 10 digits and the email field has no example address', () => {
+  const app = setup()
+  let tree = app.render()
+  const email = nodes(tree).find(n => n.type === 'input' && n.props.type === 'email')
+  assert.equal(email.props.placeholder, undefined)
+  nodes(tree).find(n => n.type === 'input' && n.props.type === 'tel').props.onChange({ target: { value: '+52 (33) 1234-5678' } })
+  tree = app.render()
+  assert.equal(nodes(tree).find(n => n.type === 'input' && n.props.type === 'tel').props.value, '3312345678')
+})
