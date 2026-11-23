@@ -81,7 +81,9 @@ Deno.serve(async (request) => {
     } catch {
       return json({ error: 'Las URLs de Make y del sitio publicado deben ser direcciones HTTPS válidas' }, 500)
     }
-    const invitationUrl = new URL(`/registro/${encodeURIComponent(invitation.token)}`, siteUrl.origin).href
+    // Enlace general de registro (no el personal con token): las invitaciones se reenvían entre invitados
+    // y cada quien se registra con su propio correo o teléfono y su nombre.
+    const invitationUrl = new URL('/', siteUrl.origin).href
 
     const { error: auditError } = await userClient.rpc('record_organizer_email_attempt', { target_guest_id: guest.id, is_resend: input?.resend === true })
     if (auditError) return json({ error: 'No se pudo validar y registrar el envío. Vuelve a tu cuenta e intenta de nuevo.' }, 403)

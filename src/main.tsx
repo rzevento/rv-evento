@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useId, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider, useIsMutating, useMutation, useQuery } from '@tanstack/react-query'
-import { createRootRoute, createRoute, createRouter, Link, Outlet, RouterProvider, useNavigate, useParams } from '@tanstack/react-router'
+import { createRootRoute, createRoute, createRouter, Link, Outlet, redirect, RouterProvider, useNavigate } from '@tanstack/react-router'
 import { AlertCircle, ArrowRight, CalendarDays, Camera, Check, CheckCircle2, ChevronDown, ClipboardList, Clock3, Download, Eye, EyeOff, Filter, LayoutDashboard, LockKeyhole, LogOut, MapPin, Menu, MoreHorizontal, Pencil, Trash2, QrCode, Search, Send, Settings2, ShieldCheck, Upload, Users, X } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
@@ -196,14 +196,15 @@ const registrationMessages = {
   notFound: 'No encontramos esta dirección de correo electrónico en nuestra lista de invitados. Le recomendamos verificar que esté escrita correctamente. Si el problema persiste, por favor comuníquese con el socio de la firma que lo atiende, quien con gusto lo apoyará.',
   phoneNotFound: 'No encontramos este número de teléfono en nuestra lista de invitados. Le recomendamos verificar que esté escrito correctamente. Si el problema persiste, por favor comuníquese con el socio de la firma que lo atiende, quien con gusto lo apoyará.',
   contactOfAnother: 'Ese correo o teléfono corresponde a la invitación de otra persona, así que no podemos emitir su entrada con él. Guardamos sus datos para que el equipo organizador los revise. Si usted también fue invitado, use su propio correo o teléfono.',
-  linkOfAnother: 'Esta invitación personal está a nombre de otra persona, así que no podemos emitir su entrada con ella. Guardamos sus datos para que el equipo organizador los revise. Si usted también fue invitado, use el enlace que le enviaron a usted.',
   phoneInUse: 'Este teléfono ya está registrado con otro invitado. Verifique el número o contacte al organizador para recibir ayuda.',
   emailInUse: 'Este correo ya está registrado con otro invitado. Verifique el correo o contacte al organizador para recibir ayuda.',
 }
 
-function RegistrationPage({ token = 'demo' }: { token?: string }) {
-  const directToken = token !== 'demo' ? token : ''
-  const [resolvedToken, setResolvedToken] = useState(directToken)
+// El registro es siempre general: cada invitado escribe su correo (o teléfono) y su nombre, y con eso se
+// busca su invitación. Así una invitación reenviada a otro invitado no muestra los datos ni el registro de
+// quien la recibió primero.
+function RegistrationPage() {
+  const [resolvedToken, setResolvedToken] = useState('')
   const [sent, setSent] = useState(false)
   const [cancelled, setCancelled] = useState(false)
   const [cancelling, setCancelling] = useState(false)
@@ -211,45 +212,13 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', email: '', phone: '', company: '' })
-  const [prefillStatus, setPrefillStatus] = useState<'loading' | 'ready' | 'error'>(directToken ? 'loading' : 'ready')
-  const [loadAttempt, setLoadAttempt] = useState(0)
-  // Correo con el que se envió la invitación del enlace personal. Si la persona escribe otro, se busca
-  // ese correo en la lista: si está, se registra esa invitación; si no, no se registra (queda en la bitácora).
-  const [invitedEmail, setInvitedEmail] = useState('')
-  useEffect(() => {
-    if (!directToken) return
-    let active = true
-    setPrefillStatus('loading')
-    setError('')
-    void getInvitationDetails(directToken).then(result => {
-      if (!active) return
-      if (result.error) throw result.error
-      if (!result.data) {
-        setError('Este enlace de invitación no es válido. Revise el enlace que recibió.')
-        setPrefillStatus('error')
-        return
-      }
-      setForm({ name: result.data.name || '', email: result.data.email || '', phone: result.data.phone || '', company: result.data.company || '' })
-      setInvitedEmail(result.data.email || '')
-      setPrefillStatus('ready')
-      if (result.data.status === 'confirmed') {
-        setAlreadyRegistered(true)
-        setSent(true)
-      }
-    }).catch(() => {
-      if (!active) return
-      setError('No pudimos cargar sus datos. Intente de nuevo.')
-      setPrefillStatus('error')
-    })
-    return () => { active = false }
-  }, [directToken, loadAttempt])
   const update = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [key]: e.target.value })
-  if (sent) return <main className="register-page success-page"><div className="success-card"><div className="success-icon">{cancelled ? <span>×</span> : <Check size={25} />}</div><p className="eyebrow">{cancelled ? 'Asistencia cancelada' : alreadyRegistered ? 'Asistencia confirmada' : 'Registro recibido'}</p><h1>{cancelled ? 'Su cancelación quedó registrada.' : alreadyRegistered ? 'Su asistencia ya está confirmada.' : `Gracias, ${form.name.trim().replace(/\s+/g, ' ') || 'por confirmar'}.`}</h1><p>{cancelled ? 'Si cambia de opinión, puede volver a confirmar desde este mismo enlace.' : alreadyRegistered ? 'Su registro ya fue recibido y su lugar está reservado. No necesita registrarse otra vez. Puede descargar su entrada o cancelar su asistencia desde aquí.' : 'Su lugar está reservado. Le esperamos.'}</p>{!cancelled && <><div className="success-details"><CalendarDays size={18} /><span>{event.date}<small>Horario {event.passTime}</small><small>{event.passRegistration}</small><small>{event.venue}, {event.city}</small></span></div><p className="pass-note"><ShieldCheck size={15} /> {form.email ? 'También recibirá su entrada por correo.' : 'Si registró un correo, también recibirá su entrada por ahí.'} No es necesario imprimirla; puede mostrarla desde su celular.</p></>}<div className="success-actions">{!cancelled && <><button className="button button-orange" onClick={() => void downloadPass()}><Download size={16} /> Descargar entrada</button></>}{!cancelled && <button className="cancel-link" disabled={cancelling} onClick={() => void cancelAttendance()}>{cancelling ? 'Cancelando…' : 'Cancelar mi asistencia'}</button>}</div>{error && <p className="form-error" role="alert">{error}</p>}{cancelled && <button className="outline-button" onClick={() => { setSent(false); setCancelled(false); setAlreadyRegistered(false); setError('') }}>Volver a confirmar asistencia</button>}</div></main>
+  if (sent) return <main className="register-page success-page"><div className="success-card"><div className="success-icon">{cancelled ? <span>×</span> : <Check size={25} />}</div><p className="eyebrow">{cancelled ? 'Asistencia cancelada' : alreadyRegistered ? 'Asistencia confirmada' : 'Registro recibido'}</p><h1>{cancelled ? 'Su cancelación quedó registrada.' : alreadyRegistered ? 'Su asistencia ya está confirmada.' : `Gracias, ${form.name.trim().replace(/\s+/g, ' ') || 'por confirmar'}.`}</h1><p>{cancelled ? 'Si cambia de opinión, puede volver a confirmar desde esta misma página.' : alreadyRegistered ? 'Su registro ya fue recibido y su lugar está reservado. No necesita registrarse otra vez. Puede descargar su entrada o cancelar su asistencia desde aquí.' : 'Su lugar está reservado. Le esperamos.'}</p>{!cancelled && <><div className="success-details"><CalendarDays size={18} /><span>{event.date}<small>Horario {event.passTime}</small><small>{event.passRegistration}</small><small>{event.venue}, {event.city}</small></span></div><p className="pass-note"><ShieldCheck size={15} /> {form.email ? 'También recibirá su entrada por correo.' : 'Si registró un correo, también recibirá su entrada por ahí.'} No es necesario imprimirla; puede mostrarla desde su celular.</p></>}<div className="success-actions">{!cancelled && <><button className="button button-orange" onClick={() => void downloadPass()}><Download size={16} /> Descargar entrada</button></>}{!cancelled && <button className="cancel-link" disabled={cancelling} onClick={() => void cancelAttendance()}>{cancelling ? 'Cancelando…' : 'Cancelar mi asistencia'}</button>}</div>{error && <p className="form-error" role="alert">{error}</p>}{cancelled && <button className="outline-button" onClick={() => { setSent(false); setCancelled(false); setAlreadyRegistered(false); setError('') }}>Volver a confirmar asistencia</button>}</div></main>
   async function cancelAttendance() {
     setCancelling(true)
     setError('')
     try {
-      const result = await cancelRsvp(resolvedToken || token)
+      const result = await cancelRsvp(resolvedToken)
       if (result.error) throw result.error
       setCancelled(true)
     } catch {
@@ -260,7 +229,7 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
   }
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (prefillStatus !== 'ready' || submitting) return
+    if (submitting) return
     if (!form.email.trim() && !form.phone.trim()) {
       setError('Escriba su correo o teléfono para identificar su registro.')
       return
@@ -273,32 +242,27 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
     }
     setSubmitting(true)
     setError('')
-    let currentToken = resolvedToken
-    const emailChanged = Boolean(directToken && invitedEmail && form.email.trim() && form.email.trim().toLowerCase() !== invitedEmail.trim().toLowerCase())
-    if (emailChanged) currentToken = ''
-    if (!currentToken) {
-      const lookup = await beginRsvp(form)
-      const status = lookup.data?.status
-      if (lookup.error || !status) { setSubmitting(false); setError('No pudimos verificar su registro. Intente de nuevo.'); return }
-      if (status === 'not_found') { setSubmitting(false); setError(form.email.trim() ? registrationMessages.notFound : registrationMessages.phoneNotFound); return }
-      if (status === 'name_mismatch' || status === 'name_required') { setSubmitting(false); setError(registrationMessages.contactOfAnother); return }
-      if (status === 'already_registered') {
-        currentToken = lookup.data?.token || ''
-        const details = await getInvitationDetails(currentToken)
-        if (details.error || !details.data) {
-          setSubmitting(false)
-          setError('No pudimos cargar su invitación. Intente de nuevo.')
-          return
-        }
-        setResolvedToken(currentToken)
-        setForm({ name: details.data.name || '', email: details.data.email || '', phone: details.data.phone || '', company: details.data.company || '' })
-        setAlreadyRegistered(true)
+    // La invitación se busca en cada envío (el token sólo se guarda al confirmar): si la persona corrige
+    // su correo o teléfono, se vuelve a buscar.
+    const lookup = await beginRsvp(form)
+    const status = lookup.data?.status
+    if (lookup.error || !status) { setSubmitting(false); setError('No pudimos verificar su registro. Intente de nuevo.'); return }
+    if (status === 'not_found') { setSubmitting(false); setError(form.email.trim() ? registrationMessages.notFound : registrationMessages.phoneNotFound); return }
+    if (status === 'name_mismatch' || status === 'name_required') { setSubmitting(false); setError(registrationMessages.contactOfAnother); return }
+    const currentToken = lookup.data?.token || ''
+    if (status === 'already_registered') {
+      const details = await getInvitationDetails(currentToken)
+      if (details.error || !details.data) {
         setSubmitting(false)
-        setSent(true)
+        setError('No pudimos cargar su invitación. Intente de nuevo.')
         return
       }
-      // El token sólo se guarda al confirmar: si la persona corrige su correo o teléfono, se vuelve a buscar.
-      currentToken = lookup.data?.token || ''
+      setResolvedToken(currentToken)
+      setForm({ name: details.data.name || '', email: details.data.email || '', phone: details.data.phone || '', company: details.data.company || '' })
+      setAlreadyRegistered(true)
+      setSubmitting(false)
+      setSent(true)
+      return
     }
     if (!form.company.trim()) {
       setSubmitting(false)
@@ -309,7 +273,7 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
     setSubmitting(false)
     const outcome = (result.data || null) as { status?: string; field?: string } | null
     if (outcome?.status === 'name_mismatch') {
-      setError(directToken ? registrationMessages.linkOfAnother : registrationMessages.contactOfAnother)
+      setError(registrationMessages.contactOfAnother)
       return
     }
     if (outcome?.status === 'email_mismatch') {
@@ -328,7 +292,7 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
       } else if (conflict.code === '23505' && description.includes('guests_event_email_key')) {
         setError(registrationMessages.emailInUse)
       } else {
-        setError('No pudimos completar el registro. Verifique su enlace e inténtelo de nuevo.')
+        setError('No pudimos completar el registro. Verifique sus datos e inténtelo de nuevo.')
       }
       return
     }
@@ -338,15 +302,11 @@ function RegistrationPage({ token = 'demo' }: { token?: string }) {
     setSent(true)
   }
   async function downloadPass() {
-    await downloadGuestPass(form.name, resolvedToken || token)
+    await downloadGuestPass(form.name, resolvedToken)
   }
-  return <main className="register-page"><section className="register-intro"><div className="rv-intro-top"><p className="eyebrow">{event.eyebrow}</p></div><h1 className="rv-title">{event.title}</h1><img className="rv-year" src="/brand/2027-ciudad.png" alt={event.accent} width={946} height={334} /><hr className="rv-divisor" /><div className="rv-columnas"><p className="rv-dato">{event.date}</p><p><span className="rv-dato">{event.time}</span><span className="rv-dato-secundario">{event.registration}</span></p><p><span className="rv-dato">{event.venue}</span><span className="rv-dato-secundario">{event.city}</span></p></div><p className="rv-aviso">{event.notice}</p></section><section className="register-card"><div className="card-top"><p className="eyebrow">Registro</p><h2>Confirme su asistencia</h2><p>Complete sus datos para reservar su lugar.</p></div><form onSubmit={handleSubmit} aria-busy={prefillStatus === 'loading'}>{prefillStatus === 'loading' && <p role="status">Cargando sus datos…</p>}<label>Nombre completo<input autoComplete="name" disabled={prefillStatus !== 'ready' || submitting} value={form.name} onChange={update('name')} placeholder="Su nombre" /></label><label>Correo electrónico<input type="email" autoComplete="email" disabled={prefillStatus !== 'ready' || submitting} value={form.email} onChange={update('email')} placeholder="nombre@empresa.com" /></label><label>Teléfono<input type="tel" autoComplete="tel" disabled={prefillStatus !== 'ready' || submitting} value={form.phone} onChange={update('phone')} placeholder="México: 10 dígitos · Otros: +código de país" /></label><label>Empresa<input autoComplete="organization" disabled={prefillStatus !== 'ready' || submitting} value={form.company} onChange={update('company')} placeholder="Nombre de la empresa" /></label>{error && <p className="form-error" role="alert">{error}</p>}{prefillStatus === 'error' && <button className="outline-button" type="button" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Volver a cargar</button>}<button className="button button-orange" type="submit" disabled={submitting || prefillStatus !== 'ready'}>{submitting ? 'Guardando…' : 'Confirmar registro'} {!submitting && <ArrowRight size={17} />}</button></form><p className="privacy-note"><ShieldCheck size={15} /> Sus datos se utilizarán únicamente para la organización del evento.</p></section></main>
+  return <main className="register-page"><section className="register-intro"><div className="rv-intro-top"><p className="eyebrow">{event.eyebrow}</p></div><h1 className="rv-title">{event.title}</h1><img className="rv-year" src="/brand/2027-ciudad.png" alt={event.accent} width={946} height={334} /><hr className="rv-divisor" /><div className="rv-columnas"><p className="rv-dato">{event.date}</p><p><span className="rv-dato">{event.time}</span><span className="rv-dato-secundario">{event.registration}</span></p><p><span className="rv-dato">{event.venue}</span><span className="rv-dato-secundario">{event.city}</span></p></div><p className="rv-aviso">{event.notice}</p></section><section className="register-card"><div className="card-top"><p className="eyebrow">Registro</p><h2>Confirme su asistencia</h2><p>Complete sus datos para reservar su lugar.</p></div><form onSubmit={handleSubmit}><label>Nombre completo<input autoComplete="name" disabled={submitting} value={form.name} onChange={update('name')} placeholder="Su nombre" /></label><label>Correo electrónico<input type="email" autoComplete="email" disabled={submitting} value={form.email} onChange={update('email')} placeholder="nombre@empresa.com" /></label><label>Teléfono<input type="tel" autoComplete="tel" disabled={submitting} value={form.phone} onChange={update('phone')} placeholder="México: 10 dígitos · Otros: +código de país" /></label><label>Empresa<input autoComplete="organization" disabled={submitting} value={form.company} onChange={update('company')} placeholder="Nombre de la empresa" /></label>{error && <p className="form-error" role="alert">{error}</p>}<button className="button button-orange" type="submit" disabled={submitting}>{submitting ? 'Guardando…' : 'Confirmar registro'} {!submitting && <ArrowRight size={17} />}</button></form><p className="privacy-note"><ShieldCheck size={15} /> Sus datos se utilizarán únicamente para la organización del evento.</p></section></main>
 }
 
-function TokenRegistrationPage() {
-  const { token } = useParams({ from: '/registro/$token' })
-  return <RegistrationPage key={token} token={token} />
-}
 
 function AdminLayout() {
   const { data: guests = [] } = useQuery({ queryKey: ['guests'], queryFn: guestQuery })
@@ -486,8 +446,8 @@ function InvitationState({ guest, channel = 'email', disabled = false, menuActio
   let whatsappHint = ''
   if (!isDemo && guest.phone) {
     try {
-      whatsappUrl = whatsappInvitationUrl(guest.phone, guest.name, guest.invitationToken || '', import.meta.env.VITE_PUBLIC_SITE_URL || window.location.origin)
-      if (guest.status === 'Pendiente' && (guest.whatsappSentAt || guest.invite === 'Enviada')) whatsappReminderUrl = whatsappInvitationUrl(guest.phone, guest.name, guest.invitationToken || '', import.meta.env.VITE_PUBLIC_SITE_URL || window.location.origin, true)
+      whatsappUrl = whatsappInvitationUrl(guest.phone, guest.name, import.meta.env.VITE_PUBLIC_SITE_URL || window.location.origin)
+      if (guest.status === 'Pendiente' && (guest.whatsappSentAt || guest.invite === 'Enviada')) whatsappReminderUrl = whatsappInvitationUrl(guest.phone, guest.name, import.meta.env.VITE_PUBLIC_SITE_URL || window.location.origin, true)
     } catch (cause) {
       whatsappHint = cause instanceof Error ? cause.message : 'No se pudo preparar el enlace de WhatsApp.'
     }
@@ -594,7 +554,7 @@ function GuestFormModal({ guest, onClose }: { guest?: Guest; onClose: () => void
   return <div className="modal-backdrop" onMouseDown={close}><div className="modal-card guest-form-modal" role="dialog" aria-modal="true" aria-labelledby="guest-form-title" onMouseDown={e => e.stopPropagation()}>
     <button className="modal-close" disabled={saving} onClick={close} aria-label="Cerrar">×</button>
     <p className="eyebrow orange">{guest ? 'Datos del invitado' : 'Nueva invitación'}</p><h2 id="guest-form-title">{guest ? 'Editar invitado' : 'Agregar invitado'}</h2>
-    <p className="muted">{guest ? 'Corrige sus datos conservando su enlace personal y su respuesta. Guardar no envía ninguna invitación.' : 'Captura el correo o celular con el que fue invitado. El nombre puede completarse después.'}</p>
+    <p className="muted">{guest ? 'Corrige sus datos conservando su invitación y su respuesta. Guardar no envía ninguna invitación.' : 'Captura el correo o celular con el que fue invitado. El nombre puede completarse después.'}</p>
     {guest?.invite === 'Enviada' && <p className="muted">Si corriges el correo, guarda y pulsa «Reenviar invitación» en la lista para enviarla a la dirección correcta.</p>}
     <form onSubmit={save}>
       <label>Nombre completo <small>(opcional)</small><input disabled={saving} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Si ya lo tienes" /></label>
@@ -934,7 +894,7 @@ function GuestsPage() {
   }
   async function removeGuest(guest: Guest) {
     if (deleteLock.current || cancelLock.current || confirmLock.current || bulkLock.current || individualSends || arrivalLoading) return
-    const reason = window.prompt(`¿Eliminar a ${guest.name} (${guest.email || guest.phone})?\n\nDejará de aparecer en la lista y en los conteos, y su enlace personal dejará de funcionar. Quedará registrado en Bitácora → Eliminados con su fecha de alta y la de hoy.\n\nMotivo (opcional):`, '')
+    const reason = window.prompt(`¿Eliminar a ${guest.name} (${guest.email || guest.phone})?\n\nDejará de aparecer en la lista y en los conteos, y ya no podrá registrarse con su correo. Quedará registrado en Bitácora → Eliminados con su fecha de alta y la de hoy.\n\nMotivo (opcional):`, '')
     if (reason === null) return
     deleteLock.current = true
     setDeletingGuest(guest.id)
@@ -1198,7 +1158,8 @@ function AdminConfigurationPage() {
 
 const rootRoute = createRootRoute({ component: PublicShell })
 const homeRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: RegistrationPage })
-const tokenRoute = createRoute({ getParentRoute: () => rootRoute, path: '/registro/$token', component: TokenRegistrationPage })
+// Enlaces personales que ya se enviaron (correos, WhatsApp y entradas anteriores): llevan al registro general.
+const tokenRoute = createRoute({ getParentRoute: () => rootRoute, path: '/registro/$token', beforeLoad: () => { throw redirect({ to: '/', replace: true }) } })
 const adminRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin', component: AdminLayout })
 const summaryRoute = createRoute({ getParentRoute: () => adminRoute, path: '/', component: SummaryPage })
 const guestsRoute = createRoute({ getParentRoute: () => adminRoute, path: '/invitados', component: GuestsPage })

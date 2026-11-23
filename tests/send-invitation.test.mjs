@@ -55,7 +55,7 @@ test('validates authentication, input and permitted membership before sending', 
 test('sends the agreed Make fields and updates only email after acknowledgement', async () => {
   const app=setup(); assert.equal((await app.call()).status,200)
   assert.deepEqual(app.counts(),{sends:1,updates:1})
-  assert.deepEqual(app.payload(),{invitation_id:id,guest_name:'&lt;Ana&gt;',greeting:'Estimado(a) &lt;Ana&gt;:',email:'ana@example.com',invitation_url:'https://evento.example.com/registro/token'})
+  assert.deepEqual(app.payload(),{invitation_id:id,guest_name:'&lt;Ana&gt;',greeting:'Estimado(a) &lt;Ana&gt;:',email:'ana@example.com',invitation_url:'https://evento.example.com/'})
 })
 test('uses a neutral greeting when the guest has no name', async () => {
   for (const fullName of [null, '', '   ']) {
@@ -93,11 +93,11 @@ test('rejects missing settings and insecure URLs before calling Make', async () 
   }
 })
 
-test('explicit resend keeps the personalized link and records a successful delivery', async () => {
+test('explicit resend uses the general registration link and records a successful delivery', async () => {
   const app = setup({ alreadySent: true })
   assert.equal((await app.call({ guest_id: id, resend: true })).status, 200)
   assert.deepEqual(app.counts(), { sends: 1, updates: 1 })
-  assert.equal(app.payload().invitation_url, 'https://evento.example.com/registro/token')
+  assert.equal(app.payload().invitation_url, 'https://evento.example.com/')
 })
 test('resend requires boolean true and still enforces role access', async () => {
   const app = setup({ alreadySent: true })
@@ -133,12 +133,12 @@ test('leader can send and resend existing invitations', async () => {
   assert.deepEqual(resend.counts(), { sends: 1, updates: 1 })
 })
 
-test('reminder uses its own webhook and keeps the personal link', async () => {
+test('reminder uses its own webhook and the general registration link', async () => {
   const app = setup({ alreadySent: true, reminder: true })
   assert.equal((await app.call({ guest_id: id, resend: true, reminder: true })).status, 200)
   assert.deepEqual(app.counts(), { sends: 1, updates: 1 })
   assert.equal(app.payload().reminder, true)
-  assert.equal(app.payload().invitation_url, 'https://evento.example.com/registro/token')
+  assert.equal(app.payload().invitation_url, 'https://evento.example.com/')
 })
 
 test('reminder requires an earlier email, no RSVP, and a configured webhook', async () => {

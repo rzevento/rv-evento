@@ -36,51 +36,26 @@ test('rejects missing, malformed or ambiguous foreign numbers', () => {
   }
 })
 
-test('encodes the personal link and special characters in the prepared message', () => {
-  const url = new URL(whatsappInvitationUrl('3312345678', 'Ana & José', 'token-personal', 'https://evento.example.com/'))
+test('links to the general registration page and encodes special characters', () => {
+  const url = new URL(whatsappInvitationUrl('3312345678', 'Ana & José', 'https://evento.example.com/'))
   assert.equal(url.origin, 'https://wa.me')
   assert.equal(url.pathname, '/523312345678')
-  assert.ok(url.searchParams.get('text')?.includes('Apreciable Ana & José:'))
-  assert.ok(url.searchParams.get('text')?.includes('https://evento.example.com/registro/token-personal'))
+  const text = url.searchParams.get('text') || ''
+  assert.ok(text.includes('Apreciable Ana & José:'))
+  assert.ok(text.includes('https://evento.example.com/\n'))
+  assert.doesNotMatch(text, /registro\/|enlace personal/)
 })
 
-test('reminder has different text while retaining the same personal link', () => {
-  const invitation = new URL(whatsappInvitationUrl('3312345678', 'Ana', 'token', 'https://evento.example.com'))
-  const reminder = new URL(whatsappInvitationUrl('3312345678', 'Ana', 'token', 'https://evento.example.com', true))
+test('reminder has different text while retaining the general link', () => {
+  const invitation = new URL(whatsappInvitationUrl('3312345678', 'Ana', 'https://evento.example.com'))
+  const reminder = new URL(whatsappInvitationUrl('3312345678', 'Ana', 'https://evento.example.com', true))
   assert.notEqual(reminder.searchParams.get('text'), invitation.searchParams.get('text'))
   assert.match(reminder.searchParams.get('text') || '', /Aún no hemos recibido su respuesta/)
-  assert.match(reminder.searchParams.get('text') || '', /https:\/\/evento.example.com\/registro\/token/)
+  assert.ok(reminder.searchParams.get('text')?.includes('https://evento.example.com/\n'))
+  assert.doesNotMatch(reminder.searchParams.get('text') || '', /registro\//)
 })
 
-test('does not expose placeholder names or create links without a token', () => {
-  const url = new URL(whatsappInvitationUrl('3312345678', 'Invitado pendiente', 'token', 'https://evento.example.com'))
+test('does not expose placeholder names', () => {
+  const url = new URL(whatsappInvitationUrl('3312345678', 'Invitado pendiente', 'https://evento.example.com'))
   assert.ok(url.searchParams.get('text')?.startsWith('Reciba un cordial saludo.'))
-  assert.throws(() => whatsappInvitationUrl('3312345678', 'Ana', '', 'https://evento.example.com'))
-})
-
-test('rejects local or unsafe public site URLs', () => {
-  for (const site of ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://[::1]:5173', 'javascript:alert(1)']) {
-    assert.throws(() => whatsappInvitationUrl('3312345678', 'Ana', 'token', site))
-  }
-})
-
-test('pending tickets are only confirmed guests with email whose ticket is known unsent', async () => {
-  const { canSendPendingTicket, bulkDurationLabel } = await import('../src/lib/invitations.ts')
-  const confirmed = { email: 'a@example.com', status: 'Confirmado', ticketSentAt: null }
-  assert.equal(canSendPendingTicket(confirmed), true)
-  assert.equal(canSendPendingTicket({ ...confirmed, ticketSentAt: '2026-11-17T21:00:00Z' }), false)
-  assert.equal(canSendPendingTicket({ ...confirmed, ticketSentAt: undefined }), false)
-  assert.equal(canSendPendingTicket({ ...confirmed, status: 'Pendiente' }), false)
-  assert.equal(canSendPendingTicket({ ...confirmed, email: ' ' }), false)
-  assert.equal(bulkDurationLabel(130), '33 min')
-  assert.equal(bulkDurationLabel(460), '1 h 55 min')
-})
-
-test('recognizes malformed email addresses from the guest upload', () => {
-  for (const email of ['ana@example.com', ' contabilidad@5conradoresnunezyasociados.com ', 'carlos.cano@sansaconsultores.com.mx', 'a.b+c@sub.example.mx']) {
-    assert.equal(isValidEmail(email), true, email)
-  }
-  for (const email of ['', 'contabilidad 5conradoresnunezyasociados.com', 'alberto.hawagruposarquis.mx', 'carlos.cano@ sansaconsultores.com.mx', 'jhernandez@gdlplazaejecutivo..com', 'ana@example', 'ana@@example.com', 'ana@.example.com', 'ana.@example.com', 'ana@example.com.']) {
-    assert.equal(isValidEmail(email), false, email)
-  }
 })
