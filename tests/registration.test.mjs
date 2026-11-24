@@ -21,7 +21,7 @@ function setup({ cancelError = false, submitError = null, submitData = null, beg
     submitRsvp: async input => { calls.push(['submit', input.token, input.email]); return { data: submitData, error: submitError } },
     beginRsvp: async input => { calls.push(['begin', input.email]); return { data: beginResult, error: null } },
     cancelRsvp: async token => { calls.push(token); return { error: cancelError ? new Error('network') : null } },
-    registrationMessages: { notFound: 'No encontramos esta dirección de correo electrónico', phoneNotFound: 'No encontramos este número de teléfono', contactOfAnother: 'corresponde a la invitación de otra persona', nameReview: 'no coincide con su nombre', phoneInUse: 'Este teléfono ya está registrado con otro invitado', emailInUse: 'Este correo ya está registrado con otro invitado' },
+    registrationMessages: { notFound: 'No encontramos esta dirección de correo electrónico', phoneNotFound: 'No encontramos este número de teléfono', phoneInUse: 'Este teléfono ya está registrado con otro invitado', emailInUse: 'Este correo ya está registrado con otro invitado' },
     isValidEmail: value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()),
     whatsappPhone: value => /^\+?[\d\s().-]{10,}$/.test(value.trim()) ? value : null,
     event: {}, Logo: 'Logo', Aniversario: 'Aniversario', Link: 'Link',
@@ -56,11 +56,13 @@ test('the registration page starts empty: a forwarded invitation never shows ano
   for (const input of nodes(tree).filter(n => n.type === 'input')) assert.equal(input.props.value, '')
   assert.doesNotMatch(text(tree), /ya está confirmada/)
 })
-test('an already registered guest gets the reserved place with download/cancel actions', async () => {
-  const app = setup()
-  const tree = await submit(app)
-  assert.match(text(tree), /Su asistencia ya está confirmada/)
-  assert.match(text(tree), /No necesita registrarse otra vez/)
+test('an email that is already confirmed registers again with the typed data and gets download/cancel actions', async () => {
+  const app = setup({ submitData: { status: 'confirmed' } })
+  const tree = await submit(app, { name: 'Diana Aceves' })
+  assert.deepEqual(app.calls.filter(c => c[0] === 'submit'), [['submit', 'personal-token', 'ana@example.com']])
+  assert.match(text(tree), /Gracias, Diana Aceves/)
+  assert.match(text(tree), /Su lugar está reservado/)
+  assert.doesNotMatch(text(tree), /Ana Pérez|ya está confirmada/)
   assert.ok(nodes(tree).some(n => n.type === 'button' && text(n).trim() === 'Descargar entrada'))
   nodes(tree).find(n => n.type === 'button' && text(n) === 'Cancelar mi asistencia').props.onClick()
   await new Promise(resolve => setImmediate(resolve))
@@ -69,7 +71,7 @@ test('an already registered guest gets the reserved place with download/cancel a
   assert.match(text(app.render()), /Volver a confirmar asistencia/)
 })
 test('a failed cancellation keeps the invitation available and displays an error', async () => {
-  const app = setup({ cancelError: true })
+  const app = setup({ cancelError: true, submitData: { status: 'confirmed' } })
   await submit(app)
   await nodes(app.render()).find(n => n.type === 'button' && text(n) === 'Cancelar mi asistencia').props.onClick()
   await new Promise(resolve => setImmediate(resolve))
@@ -100,26 +102,15 @@ for (const [constraint, message] of [
   })
 }
 
-for (const [status, message] of [['not_found', /No encontramos esta dirección de correo electrónico/], ['name_mismatch', /corresponde a la invitación de otra persona/], ['name_review', /no coincide con su nombre/]]) {
-  test(`the registration page does not hand out another guest's pass when begin_rsvp answers ${status}`, async () => {
-    const app = setup({ beginResult: { status } })
-    const tree = await submit(app, { email: 'otra@example.com', name: 'Luis Gómez' })
-    assert.match(text(tree), message)
-    assert.doesNotMatch(text(tree), /Descargar entrada/)
-    assert.deepEqual(app.calls.filter(c => c[0] === 'submit'), [])
-  })
-}
-test('a name that does not match at submit time is not confirmed', async () => {
-  const app = setup({ beginResult: { token: 'personal-token', status: 'pending' }, submitData: { status: 'name_mismatch' } })
-  const tree = await submit(app)
-  assert.match(text(tree), /corresponde a la invitación de otra persona/)
-  assert.doesNotMatch(text(tree), /Su lugar está reservado/)
+test('the only rejection is an email that is not on the guest list', async () => {
+  const app = setup({ beginResult: { status: 'not_found' } })
+  const tree = await submit(app, { email: 'otra@example.com', name: 'Luis Gómez' })
+  assert.match(text(tree), /No encontramos esta dirección de correo electrónico/)
+  assert.doesNotMatch(text(tree), /Descargar entrada/)
+  assert.deepEqual(app.calls.filter(c => c[0] === 'submit'), [])
 })
-test('a guest without a name whose email does not fit the typed name goes to review at submit time', async () => {
-  const app = setup({ beginResult: { token: 'personal-token', status: 'pending' }, submitData: { status: 'name_review' } })
-  const tree = await submit(app)
-  assert.match(text(tree), /no coincide con su nombre/)
-  assert.doesNotMatch(text(tree), /Su lugar está reservado|Descargar entrada/)
+test('the page has no name-versus-invitation messages left', () => {
+  assert.doesNotMatch(source, /name_mismatch|name_review|contactOfAnother|nameReview|invitación de otra persona/)
 })
 for (const [field, values, message] of [
   ['name', { name: '' }, /Escriba su nombre completo/],
