@@ -6,10 +6,11 @@ import { AlertCircle, ArrowRight, CalendarDays, Camera, Check, CheckCircle2, Che
 import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
 import { QrScanner } from './components/QrScanner'
-import { addEventMember, beginRsvp, cancelRsvp, checkInGuest, undoCheckInGuest, createGuest, updateGuest, deleteGuest, markGuestCancelled, markGuestConfirmed, findGuestByQr, getCurrentOrganizerProfile, getEventMembers, updateEventMemberRole, getInvitationToken, getInvitationDetails, markWhatsAppInvitationSent, releaseGuestTicket, sendInvitation, sendTicket, submitRsvp, supabase, getEmailBounces } from './lib/supabase'
-import { BULK_EMAIL_PAUSE_MS, INVALID_EMAIL_MESSAGE, bulkDurationLabel, canSendPendingEmail, canSendPendingTicket, canSendReminderEmail, isValidEmail, whatsappInvitationUrl, whatsappPhone } from './lib/invitations'
+import { addEventMember, beginRsvp, cancelRsvp, checkInGuest, undoCheckInGuest, createGuest, updateGuest, deleteGuest, markGuestCancelled, markGuestConfirmed, findGuestByQr, getCurrentOrganizerProfile, getEventMembers, updateEventMemberRole, getInvitationToken, getInvitationDetails, markWhatsAppInvitationSent, releaseGuestTicket, sendInvitation, sendTicket, submitRsvp, supabase, getEmailBounces, enqueueBulkEmail, stopEmailBatch, getEmailBatchStatus } from './lib/supabase'
+import { BULK_EMAIL_PAUSE_MS, bulkDurationLabel, canSendPendingEmail, canSendPendingTicket, canSendReminderEmail, isValidEmail, whatsappInvitationUrl, whatsappPhone } from './lib/invitations'
 import { OrganizerRoleContext, useCanManageInvitations, useCanSendInvitations } from './lib/organizer-permissions'
 import { blockWarning, recentAccountBlock } from './lib/email-log'
+import { emailBatchNoun, emailBatchProgress, isEmailBatchActive, type EmailBatchKind } from './lib/email-queue'
 import ImpersonationControl from './components/ImpersonationControl'
 import { beginIdentityChange, finishIdentityChange, cancelIdentityChange, resetImpersonation, getImpersonationId, organizerAction } from './lib/impersonation-transport'
 import { startOrganizerImpersonation, stopOrganizerImpersonation } from './lib/supabase'
@@ -319,6 +320,43 @@ function RegistrationPage() {
 }
 
 
+// Avance del envío masivo que hace el servidor. Va en el marco del panel para verse en todas las páginas.
+function BulkEmailProgress() {
+  const canSendInvitations = useCanSendInvitations()
+  const [stopping, setStopping] = useState(false)
+  const [stopError, setStopError] = useState('')
+  const [dismissed, setDismissed] = useState(() => { try { return localStorage.getItem('rv-email-batch-dismissed') || '' } catch { return '' } })
+  const { data: batch } = useQuery({ queryKey: ['email-batch'], queryFn: getEmailBatchStatus, enabled: canSendInvitations, refetchInterval: query => isEmailBatchActive(query.state.data) ? 5_000 : 60_000 })
+  // Cada correo que sale actualiza la lista de invitados (Enviada, recordatorio, entrada).
+  const progressKey = batch ? `${batch.id}:${batch.counts.queued}:${batch.counts.sending}` : ''
+  useEffect(() => { if (progressKey) void queryClient.invalidateQueries({ queryKey: ['guests'] }) }, [progressKey])
+  if (!canSendInvitations || !batch) return null
+  const current = batch
+  const active = isEmailBatchActive(current)
+  // Un envío terminado se muestra hasta cerrar el aviso, y no más de 12 horas.
+  if (!active && (dismissed === current.id || Date.now() - new Date(current.lastActivity || current.createdAt).getTime() > 12 * 3_600_000)) return null
+  async function stop() {
+    if (!window.confirm(`¿Detener el envío de ${emailBatchNoun(current.kind)}? Los que faltan no se mandarán (el que esté saliendo en este momento sí termina).`)) return
+    setStopping(true)
+    setStopError('')
+    try {
+      const result = await stopEmailBatch(current.id)
+      if (result.error) throw result.error
+    } catch (cause) {
+      setStopError(cause instanceof Error ? cause.message : 'No se pudo detener el envío.')
+    } finally {
+      setStopping(false)
+      await queryClient.invalidateQueries({ queryKey: ['email-batch'] })
+    }
+  }
+  function dismiss() {
+    try { localStorage.setItem('rv-email-batch-dismissed', current.id) } catch { /* sin almacenamiento: sólo se oculta ahora */ }
+    setDismissed(current.id)
+  }
+  const tone = active ? 'active' : current.stoppedAt || current.problems.length ? 'warning' : 'done'
+  return <div className={`bulk-email-progress ${tone}`} role="status"><div><p>{emailBatchProgress(current)}</p>{current.stoppedAt && current.stopReason && current.counts.failed === 0 && <p className="bulk-email-detail">{current.stopReason}</p>}{current.problems.length > 0 && <p className="bulk-email-detail">No se enviaron (revísalos y vuelve a intentar): {current.problems.map(problem => `${problem.email}: ${problem.detail || 'sin detalle'}`).join(' · ')}</p>}{stopError && <p className="form-error">{stopError}</p>}</div>{active ? <button className="button button-orange small" disabled={stopping} onClick={() => void stop()}><X size={16} /> {stopping ? 'Deteniendo…' : 'Detener envío'}</button> : <button className="button button-dark small" onClick={dismiss}>Cerrar aviso</button>}</div>
+}
+
 function AdminLayout() {
   const { data: guests = [] } = useQuery({ queryKey: ['guests'], queryFn: guestQuery })
   const navigate = useNavigate()
@@ -400,7 +438,7 @@ function AdminLayout() {
   if (organizerQuery.isError || !organizer) return <div className="auth-loading">{getImpersonationId() && <><p>La vista del usuario se ha detenido.</p><button className="button button-dark" disabled={identityChanging} onClick={() => void changeIdentity()}>Volver a mi cuenta</button></>}{identityError && <p role="alert">{identityError}</p>}<p role="alert">No pudimos verificar tu acceso al evento.</p><button className="button button-dark" onClick={() => void organizerQuery.refetch()}>Reintentar</button><button className="outline-button" onClick={() => { if (supabase) void supabase.auth.signOut() }}>Cerrar sesión</button></div>
   const organizerInitials = organizer.displayName.split(' ').map(name => name[0]).slice(0, 2).join('').toUpperCase()
   const sentInvitations = guests.filter(guest => guest.invite === 'Enviada' || Boolean(guest.whatsappSentAt)).length
-  return <OrganizerRoleContext.Provider value={organizer.roleCode}><div className={`admin-shell ${mobileNavOpen ? 'mobile-open' : ''}`}><aside className="sidebar"><div className="sidebar-brand"><span>RUVALCABA VILLALOBOS</span></div><div className="event-switcher"><span>EVENTO ACTIVO</span><strong>Reformas fiscales 2027</strong><ChevronDown size={15} /></div><nav onClick={() => setMobileNavOpen(false)}><Link to="/admin" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}><LayoutDashboard size={18} /> Resumen</Link><Link to="/admin/invitados" activeProps={{ className: 'active' }}><Users size={18} /> Invitados <b>{sentInvitations}</b></Link><Link to="/admin/check-in" activeProps={{ className: 'active' }}><CheckCircle2 size={18} /> Registro en evento</Link><Link to="/admin/bitacora" activeProps={{ className: 'active' }}><ClipboardList size={18} /> Bitácora</Link>{canManageInvitations && <Link to="/admin/configuracion" activeProps={{ className: 'active' }}><Settings2 size={18} /> Configuración</Link>}{organizer.actorIsAdmin && <ImpersonationControl key={organizer.impersonationId || 'self'} profile={organizer} busy={identityChanging} error={identityError} onChange={changeIdentity} />}</nav><div className="sidebar-bottom"><div className="user-avatar">{organizerInitials}</div><div><strong>{organizer.displayName}</strong><small>{organizer.role}</small></div><button className="sidebar-logout" onClick={() => { localStorage.removeItem('rv-organizer-authenticated'); sessionStorage.removeItem('rv-organizer-authenticated'); if (supabase) void supabase.auth.signOut(); else { setLocalAuthenticated(false); setAuthenticated(false) } }} aria-label="Cerrar sesión"><LogOut size={17} aria-hidden="true" /><span>Cerrar sesión</span></button></div></aside><main className="admin-main"><header className="admin-header"><button className="mobile-menu" onClick={() => setMobileNavOpen(current => !current)} aria-label="Abrir menú"><Menu size={20} /></button><div><p className="eyebrow">{event.date}</p><h1>{event.title} {event.accent}</h1></div>{canManageInvitations && <div className="header-actions"><button className="icon-button" onClick={() => downloadGuestCsv(guests)} aria-label="Descargar lista de invitados"><Download size={17} /></button><button className="button button-orange small" onClick={() => void navigate({ to: '/admin/invitados' })}><Send size={16} /> Nueva invitación</button></div>}</header>{identityChanging ? <div className="impersonation-busy" role="status">Cambiando de usuario…</div> : <div key={`${organizer.actorUserId}:${organizer.userId}:${organizer.impersonationId || 'self'}`}><Outlet /></div>}</main></div></OrganizerRoleContext.Provider>
+  return <OrganizerRoleContext.Provider value={organizer.roleCode}><div className={`admin-shell ${mobileNavOpen ? 'mobile-open' : ''}`}><aside className="sidebar"><div className="sidebar-brand"><span>RUVALCABA VILLALOBOS</span></div><div className="event-switcher"><span>EVENTO ACTIVO</span><strong>Reformas fiscales 2027</strong><ChevronDown size={15} /></div><nav onClick={() => setMobileNavOpen(false)}><Link to="/admin" activeOptions={{ exact: true }} activeProps={{ className: 'active' }}><LayoutDashboard size={18} /> Resumen</Link><Link to="/admin/invitados" activeProps={{ className: 'active' }}><Users size={18} /> Invitados <b>{sentInvitations}</b></Link><Link to="/admin/check-in" activeProps={{ className: 'active' }}><CheckCircle2 size={18} /> Registro en evento</Link><Link to="/admin/bitacora" activeProps={{ className: 'active' }}><ClipboardList size={18} /> Bitácora</Link>{canManageInvitations && <Link to="/admin/configuracion" activeProps={{ className: 'active' }}><Settings2 size={18} /> Configuración</Link>}{organizer.actorIsAdmin && <ImpersonationControl key={organizer.impersonationId || 'self'} profile={organizer} busy={identityChanging} error={identityError} onChange={changeIdentity} />}</nav><div className="sidebar-bottom"><div className="user-avatar">{organizerInitials}</div><div><strong>{organizer.displayName}</strong><small>{organizer.role}</small></div><button className="sidebar-logout" onClick={() => { localStorage.removeItem('rv-organizer-authenticated'); sessionStorage.removeItem('rv-organizer-authenticated'); if (supabase) void supabase.auth.signOut(); else { setLocalAuthenticated(false); setAuthenticated(false) } }} aria-label="Cerrar sesión"><LogOut size={17} aria-hidden="true" /><span>Cerrar sesión</span></button></div></aside><main className="admin-main"><header className="admin-header"><button className="mobile-menu" onClick={() => setMobileNavOpen(current => !current)} aria-label="Abrir menú"><Menu size={20} /></button><div><p className="eyebrow">{event.date}</p><h1>{event.title} {event.accent}</h1></div>{canManageInvitations && <div className="header-actions"><button className="icon-button" onClick={() => downloadGuestCsv(guests)} aria-label="Descargar lista de invitados"><Download size={17} /></button><button className="button button-orange small" onClick={() => void navigate({ to: '/admin/invitados' })}><Send size={16} /> Nueva invitación</button></div>}</header>{identityChanging ? <div className="impersonation-busy" role="status">Cambiando de usuario…</div> : <div key={`${organizer.actorUserId}:${organizer.userId}:${organizer.impersonationId || 'self'}`}><BulkEmailProgress /><Outlet /></div>}</main></div></OrganizerRoleContext.Provider>
 }
 
 function AdminLogin({ onLocalAuthenticated }: { onLocalAuthenticated: () => void }) {
@@ -611,11 +649,14 @@ function GuestsPage() {
   const [passLoading, setPassLoading] = useState<string | null>(null)
   const [arrivalLoading, setArrivalLoading] = useState<string | null>(null)
   const [actionError, setActionError] = useState('')
+  // Envíos masivos: los manda el servidor (cola en Supabase, un correo cada 15 s) aunque se cambie de página o se
+  // cierre la pestaña; aquí sólo se ponen en fila. El avance y «Detener envío» los muestra BulkEmailProgress en
+  // todas las páginas del panel. bulkSending sólo cubre el momento de ponerlos en fila.
   const [bulkSending, setBulkSending] = useState(false)
   const bulkLock = useRef(false)
   const [bulkNotice, setBulkNotice] = useState('')
-  const bulkStop = useRef(false)
-  const [bulkStopping, setBulkStopping] = useState(false)
+  const { data: emailBatch } = useQuery({ queryKey: ['email-batch'], queryFn: getEmailBatchStatus, enabled: canSendInvitations })
+  const batchRunning = isEmailBatchActive(emailBatch)
   const individualSends = useIsMutating({ mutationKey: ['invitation-send'] })
   const pendingEmails = data.filter(canSendPendingEmail)
   const pendingReminders = data.filter(canSendReminderEmail)
@@ -624,209 +665,44 @@ function GuestsPage() {
   const { data: bounces } = useQuery({ queryKey: ['email-bounces'], queryFn: getEmailBounces, refetchInterval: 60_000 })
   const sendWarning = blockWarning(recentAccountBlock(bounces))
   const confirmPrefix = sendWarning ? `ATENCIÓN: ${sendWarning}\n\n` : ''
-  // Espera entre correos de un envío masivo; se corta en cuanto se pulsa «Detener envío».
-  // Un solo temporizador: antes eran 60 de 250 ms y, con la pestaña en segundo plano o la pantalla apagada,
-  // Chrome retrasa cada uno hasta un minuto; el 2026-11-18 el envío quedó congelado a las 21:15 sin ningún error.
-  const bulkWake = useRef<(() => void) | null>(null)
-  const wakeLock = useRef<{ release: () => Promise<void> } | null>(null)
-  async function bulkPause() {
-    if (bulkStop.current) return
-    await new Promise<void>(resolve => {
-      const done = () => { clearTimeout(timer); bulkWake.current = null; resolve() }
-      const timer = setTimeout(done, BULK_EMAIL_PAUSE_MS)
-      bulkWake.current = done
-    })
-  }
-  function stopBulk() {
-    bulkStop.current = true
-    setBulkStopping(true)
-    bulkWake.current?.()
-  }
-  // Mientras envía, pide que la pantalla no se apague (si el navegador lo permite).
-  async function keepScreenOn() {
-    try {
-      const nav = navigator as Navigator & { wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void> }> } }
-      if (bulkLock.current && !wakeLock.current && document.visibilityState === 'visible' && nav.wakeLock) wakeLock.current = await nav.wakeLock.request('screen')
-    } catch { /* sin permiso o sin soporte: el envío sigue igual */ }
-  }
-  useEffect(() => {
-    if (!bulkSending) return
-    // El navegador suelta el bloqueo al ocultar la pestaña; se vuelve a pedir al regresar.
-    const onVisible = () => { if (document.visibilityState === 'visible') { wakeLock.current = null; void keepScreenOn() } }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [bulkSending])
-  function startBulk() {
-    bulkLock.current = true
-    bulkStop.current = false
-    setBulkStopping(false)
-    setBulkSending(true)
-    void keepScreenOn()
-  }
-  function finishBulk() {
-    bulkLock.current = false
-    bulkStop.current = false
-    bulkWake.current = null
-    void wakeLock.current?.release().catch(() => undefined)
-    wakeLock.current = null
-    setBulkStopping(false)
-    setBulkSending(false)
-  }
-  async function sendAllInvitations() {
+  async function queueBulk(kind: EmailBatchKind, allowed: boolean, eligible: (guest: Guest) => boolean, question: (total: number) => string) {
     return organizerAction(async () => {
-      if (!canSendInvitations || bulkLock.current || individualSends || deleteLock.current || editingGuest || !pendingEmails.length) return
-      startBulk()
+      if (!allowed || bulkLock.current || batchRunning || individualSends || deleteLock.current || editingGuest) return
+      bulkLock.current = true
+      setBulkSending(true)
       setActionError('')
-      setBulkNotice('Revisando invitaciones pendientes…')
-      let sent = 0
-      let skipped = 0
-      let total = 0
-      // Errores propios de un invitado (sin invitación, sin correo): se apartan y el envío sigue.
-      // Un envío no confirmado por Make sí detiene todo, para no mandar correos duplicados.
-      const guestProblems: string[] = []
-      const skippable = ['Este invitado no tiene una invitación asociada al evento', 'Este invitado no tiene correo electrónico', 'Invitado no encontrado o sin acceso']
+      setBulkNotice('Revisando pendientes…')
       try {
         const current = await queryClient.fetchQuery({ queryKey: ['guests'], queryFn: guestQuery, staleTime: 0 })
-        const pending = current.filter(canSendPendingEmail)
-        total = pending.length
+        const total = current.filter(eligible).length
         if (!total) {
-          setBulkNotice('No hay invitaciones por correo pendientes de envío.')
+          setBulkNotice(`No hay ${emailBatchNoun(kind)} pendientes de envío.`)
           return
         }
-        if (!window.confirm(`${confirmPrefix}Se enviará la invitación por correo a ${total} invitado(s), uno cada ${BULK_EMAIL_PAUSE_MS / 1000} segundos para que Outlook no bloquee la cuenta (unos ${bulkDurationLabel(total)}). Mantén esta pestaña abierta y al frente (si cambias de pestaña o se bloquea la computadora, el envío se frena); puedes detener el envío en cualquier momento. ¿Continuar?`)) {
-          setBulkNotice('Envío de invitaciones cancelado.')
+        if (!window.confirm(`${confirmPrefix}${question(total)} Los manda el servidor, un correo cada ${BULK_EMAIL_PAUSE_MS / 1000} segundos para que Outlook no bloquee la cuenta (unos ${bulkDurationLabel(total)}). Puedes cambiar de página o cerrar el panel: el avance y «Detener envío» se ven arriba en todas las páginas. ¿Continuar?`)) {
+          setBulkNotice('Envío cancelado.')
           return
         }
-        for (const [index, guest] of pending.entries()) {
-          if (index > 0) await bulkPause()
-          if (bulkStop.current) break
-          if (!isValidEmail(guest.email)) { guestProblems.push(`${guest.email}: ${INVALID_EMAIL_MESSAGE}`); continue }
-          setBulkNotice(`Enviando correos: ${sent + skipped + guestProblems.length} de ${total}, uno cada ${BULK_EMAIL_PAUSE_MS / 1000} s. Mantén esta pestaña abierta y al frente.`)
-          const result = await sendInvitation(guest.id, false)
-          if (result.error && skippable.includes(result.error.message)) {
-            guestProblems.push(`${guest.email}: ${result.error.message}`)
-            continue
-          }
-          if (result.error) throw new Error(`${guest.email}: ${result.error.message}`)
-          if (!result.demo && result.data?.ok !== true) throw new Error(`${guest.email}: no se confirmó el envío. Revisa el historial de Make antes de reintentar.`)
-          if (result.data?.already_sent) skipped += 1
-          else sent += 1
-          queryClient.setQueryData<Guest[]>(['guests'], guests => guests?.map(item => item.id === guest.id ? { ...item, invite: 'Enviada' } : item))
-        }
-        const left = total - sent - skipped - guestProblems.length
-        setBulkNotice(`${bulkStop.current && left ? `Envío detenido. ${left} invitación(es) quedan pendientes. ` : ''}${sent} correo(s) enviado(s).${skipped ? ` ${skipped} ya enviado(s) omitido(s).` : ''}${guestProblems.length ? ` ${guestProblems.length} no se pudieron enviar.` : ''}`)
-        if (guestProblems.length) setActionError(`No se enviaron (revísalos y vuelve a intentar): ${guestProblems.join(' · ')}`)
+        const result = await enqueueBulkEmail(kind)
+        if (result.error) throw result.error
+        if (result.demo) setBulkNotice('Modo de demostración: no se enviaron correos.')
+        else if (result.data?.status === 'busy') setBulkNotice('Ya hay un envío masivo en curso; espera a que termine o detenlo.')
+        else if (result.data?.status === 'empty') setBulkNotice(`No hay ${emailBatchNoun(kind)} pendientes de envío.`)
+        else setBulkNotice('')
       } catch (cause) {
-        setBulkNotice(`Envío detenido: ${sent} correo(s) enviado(s), ${skipped + guestProblems.length} omitido(s) y ${total - sent - skipped - guestProblems.length} sin completar.`)
-        const reason = cause instanceof Error ? cause.message : 'No se pudo completar el envío. Revisa el historial de Make antes de reintentar.'
-        setActionError(guestProblems.length ? `${reason} · Además no se enviaron: ${guestProblems.join(' · ')}` : reason)
+        setBulkNotice('')
+        setActionError(cause instanceof Error ? `No se pudo iniciar el envío: ${cause.message}` : 'No se pudo iniciar el envío.')
       } finally {
-        finishBulk()
+        bulkLock.current = false
+        setBulkSending(false)
+        await queryClient.invalidateQueries({ queryKey: ['email-batch'] })
       }
     })
   }
-  async function sendAllReminders() {
-    return organizerAction(async () => {
-      if (!canSendInvitations || bulkLock.current || individualSends || deleteLock.current || editingGuest || !pendingReminders.length) return
-      startBulk()
-      setActionError('')
-      setBulkNotice('Revisando respuestas antes de enviar recordatorios…')
-      let sent = 0
-      let skipped = 0
-      let total = 0
-      const guestProblems: string[] = []
-      try {
-        const current = await queryClient.fetchQuery({ queryKey: ['guests'], queryFn: guestQuery, staleTime: 0 })
-        const pending = current.filter(canSendReminderEmail)
-        total = pending.length
-        if (!total) {
-          setBulkNotice('Ya no hay invitados con correo enviado y respuesta pendiente.')
-          return
-        }
-        if (!window.confirm(`${confirmPrefix}Se enviará un recordatorio por correo a ${total} invitado(s) que aún no responden y no han recibido recordatorio, uno cada ${BULK_EMAIL_PAUSE_MS / 1000} segundos (unos ${bulkDurationLabel(total)}). Se incluyen todos los elegibles, sin importar los filtros de la lista. Mantén esta pestaña abierta y al frente (si cambias de pestaña o se bloquea la computadora, el envío se frena). ¿Continuar?`)) {
-          setBulkNotice('Envío de recordatorios cancelado.')
-          return
-        }
-        for (const [index, guest] of pending.entries()) {
-          if (index > 0) await bulkPause()
-          if (bulkStop.current) break
-          if (!isValidEmail(guest.email)) { guestProblems.push(`${guest.email}: ${INVALID_EMAIL_MESSAGE}`); continue }
-          setBulkNotice(`Enviando recordatorios: ${sent + skipped + guestProblems.length} de ${total}, uno cada ${BULK_EMAIL_PAUSE_MS / 1000} s. Mantén esta pestaña abierta y al frente.`)
-          const result = await sendInvitation(guest.id, true, true)
-          if (result.error?.message === 'Este invitado ya respondió; no se envió el recordatorio.') {
-            skipped += 1
-            continue
-          }
-          if (result.error) throw new Error(`${guest.email}: ${result.error.message}`)
-          if (!result.demo && result.data?.ok !== true) throw new Error(`${guest.email}: no se confirmó el recordatorio. Revisa el historial de Make antes de reintentar.`)
-          if (result.data?.already_sent) skipped += 1
-          else sent += 1
-          queryClient.setQueryData<Guest[]>(['guests'], guests => guests?.map(item => item.id === guest.id ? { ...item, reminderSentAt: result.data?.reminder_sent_at || new Date().toISOString() } : item))
-        }
-        const left = total - sent - skipped - guestProblems.length
-        setBulkNotice(`${bulkStop.current && left ? `Envío detenido. ${left} recordatorio(s) quedan pendientes. ` : ''}${sent} recordatorio(s) enviado(s).${skipped ? ` ${skipped} omitido(s) porque ya respondieron o tenían recordatorio.` : ''}${guestProblems.length ? ` ${guestProblems.length} no se pudieron enviar.` : ''}`)
-        if (guestProblems.length) setActionError(`No se enviaron: ${guestProblems.join(' · ')}`)
-      } catch (cause) {
-        setBulkNotice(`Envío detenido: ${sent} recordatorio(s) enviado(s), ${skipped + guestProblems.length} omitido(s) y ${total - sent - skipped - guestProblems.length} sin completar.`)
-        const reason = cause instanceof Error ? cause.message : 'No se pudo completar el envío. Revisa el historial de Make antes de reintentar.'
-        setActionError(guestProblems.length ? `${reason} · Además no se enviaron: ${guestProblems.join(' · ')}` : reason)
-      } finally {
-        finishBulk()
-        await queryClient.invalidateQueries({ queryKey: ['guests'] })
-      }
-    })
-  }
-  // Entradas de confirmados que no se mandaron (p. ej. liberadas tras un rebote). send-ticket es idempotente:
-  // si alguna ya se envió, responde already_sent y no la repite.
-  async function sendAllTickets() {
-    return organizerAction(async () => {
-      if (!canManageInvitations || bulkLock.current || individualSends || deleteLock.current || editingGuest || !pendingTickets.length) return
-      startBulk()
-      setActionError('')
-      setBulkNotice('Revisando entradas pendientes…')
-      let sent = 0
-      let skipped = 0
-      let total = 0
-      const guestProblems: string[] = []
-      try {
-        const current = await queryClient.fetchQuery({ queryKey: ['guests'], queryFn: guestQuery, staleTime: 0 })
-        const pending = current.filter(canSendPendingTicket)
-        total = pending.length
-        if (!total) {
-          setBulkNotice('No hay entradas pendientes de envío.')
-          return
-        }
-        if (!window.confirm(`${confirmPrefix}Se enviará la entrada por correo a ${total} invitado(s) confirmado(s) que no la han recibido, una cada ${BULK_EMAIL_PAUSE_MS / 1000} segundos (unos ${bulkDurationLabel(total)}). Mantén esta pestaña abierta y al frente (si cambias de pestaña o se bloquea la computadora, el envío se frena). ¿Continuar?`)) {
-          setBulkNotice('Envío de entradas cancelado.')
-          return
-        }
-        for (const [index, guest] of pending.entries()) {
-          if (index > 0) await bulkPause()
-          if (bulkStop.current) break
-          if (!isValidEmail(guest.email)) { guestProblems.push(`${guest.email}: ${INVALID_EMAIL_MESSAGE}`); continue }
-          setBulkNotice(`Enviando entradas: ${sent + skipped + guestProblems.length} de ${total}, una cada ${BULK_EMAIL_PAUSE_MS / 1000} s. Mantén esta pestaña abierta y al frente.`)
-          const token = guest.invitationToken || (await getInvitationToken(guest.id)).data
-          if (!token) { guestProblems.push(`${guest.email}: no se encontró su invitación`); continue }
-          const result = await sendTicket(token)
-          if (result.error) throw new Error(`${guest.email}: ${result.error.message}`)
-          if (!result.demo && result.data?.ok !== true) throw new Error(`${guest.email}: no se confirmó el envío de la entrada. Revisa el historial de Make antes de reintentar.`)
-          if (result.data?.already_sent || result.data?.skipped) skipped += 1
-          else sent += 1
-          queryClient.setQueryData<Guest[]>(['guests'], guests => guests?.map(item => item.id === guest.id ? { ...item, ticketSentAt: new Date().toISOString() } : item))
-        }
-        const left = total - sent - skipped - guestProblems.length
-        setBulkNotice(`${bulkStop.current && left ? `Envío detenido. ${left} entrada(s) quedan pendientes. ` : ''}${sent} entrada(s) enviada(s).${skipped ? ` ${skipped} ya enviada(s) omitida(s).` : ''}${guestProblems.length ? ` ${guestProblems.length} no se pudieron enviar.` : ''}`)
-        if (guestProblems.length) setActionError(`No se enviaron: ${guestProblems.join(' · ')}`)
-      } catch (cause) {
-        setBulkNotice(`Envío detenido: ${sent} entrada(s) enviada(s), ${skipped + guestProblems.length} omitida(s) y ${total - sent - skipped - guestProblems.length} sin completar.`)
-        const reason = cause instanceof Error ? cause.message : 'No se pudo completar el envío. Revisa el historial de Make antes de reintentar.'
-        setActionError(guestProblems.length ? `${reason} · Además no se enviaron: ${guestProblems.join(' · ')}` : reason)
-      } finally {
-        finishBulk()
-        await queryClient.invalidateQueries({ queryKey: ['guests'] })
-      }
-    })
-  }
+  const sendAllInvitations = () => queueBulk('invitacion', canSendInvitations, canSendPendingEmail, total => `Se enviará la invitación por correo a ${total} invitado(s).`)
+  const sendAllReminders = () => queueBulk('recordatorio', canSendInvitations, canSendReminderEmail, total => `Se enviará un recordatorio por correo a ${total} invitado(s) que aún no responden y no han recibido recordatorio. Se incluyen todos los elegibles, sin importar los filtros de la lista.`)
+  // Entradas de confirmados que no se mandaron (p. ej. liberadas tras un rebote).
+  const sendAllTickets = () => queueBulk('entrada', canManageInvitations, canSendPendingTicket, total => `Se enviará la entrada por correo a ${total} invitado(s) confirmado(s) que no la han recibido.`)
   const fileInput = useRef<HTMLInputElement>(null)
   // Progreso de la carga masiva: se guardan de pocos en pocos y la lista se actualiza mientras avanza.
   const [importProgress, setImportProgress] = useState<{ done: number; total: number; failed: number } | null>(null)
@@ -1056,7 +932,7 @@ function GuestsPage() {
     })
   }
   const count = (status: GuestStatus) => data.filter(g => g.status === status).length
-  return <section className="dashboard"><div className="page-heading"><div><p className="eyebrow orange">Gestión de invitados</p><h2>Lista de invitados <span>{data.length}</span></h2><p className="muted">Consulta respuestas y administra tus invitaciones.</p></div>{canSendInvitations && <div className="page-actions"><button className="button button-orange" disabled={bulkSending || deletingGuest !== null || editingGuest !== null || individualSends > 0 || isPending || isError || pendingEmails.length === 0} onClick={() => void sendAllInvitations()}><Send size={16} /> {bulkSending ? 'Enviando correos…' : `Enviar todas las invitaciones (${pendingEmails.length})`}</button><button className="button button-dark" disabled={bulkSending || deletingGuest !== null || editingGuest !== null || individualSends > 0 || isPending || isError || pendingReminders.length === 0} onClick={() => void sendAllReminders()}><Send size={16} /> {bulkSending ? 'Enviando correos…' : `Enviar todos los recordatorios (${pendingReminders.length})`}</button>{canManageInvitations && <button className="button button-dark" disabled={bulkSending || deletingGuest !== null || editingGuest !== null || individualSends > 0 || isPending || isError || pendingTickets.length === 0} onClick={() => void sendAllTickets()}><Send size={16} /> {bulkSending ? 'Enviando correos…' : `Enviar entradas pendientes (${pendingTickets.length})`}</button>}{bulkSending && <button className="button button-orange" disabled={bulkStopping} onClick={stopBulk}><X size={16} /> {bulkStopping ? 'Deteniendo…' : 'Detener envío'}</button>}{canManageInvitations && <><input ref={fileInput} className="hidden-file" type="file" accept=".csv,text/csv" onChange={importCsv} /><button className="button button-dark" onClick={exportCsv}><Download size={16} /> Exportar CSV</button><button className="button button-dark" disabled={importProgress !== null} onClick={() => fileInput.current?.click()}><Upload size={16} /> {importProgress ? `Cargando ${importProgress.done} de ${importProgress.total}…` : 'Cargar masivamente'}</button><button className="button button-orange" onClick={() => setShowNew(true)}><Users size={16} /> Agregar invitado</button></>}</div>}</div><div className="filter-bar"><div className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre, correo, celular o empresa" /></div><label className="filter-button"><Filter size={16} /><select aria-label="Filtrar por respuesta" value={filterStatus} onChange={e => setFilterStatus(e.target.value as 'all' | GuestStatus)}><option value="all">Todos los estados</option><option value="Confirmado">Confirmados</option><option value="Pendiente">Pendientes de respuesta</option><option value="Canceló">Cancelaron</option></select></label><label className="filter-button"><Send size={16} /><select aria-label="Filtrar por envío de invitación" value={filterDelivery} onChange={e => setFilterDelivery(e.target.value)}><option value="all">Todas las invitaciones</option><option value="sent">Enviadas por algún canal</option><option value="pending">Sin enviar por ningún canal</option><option value="email">Correo enviado</option><option value="whatsapp">WhatsApp enviado</option></select></label></div><p className="guest-list-summary" aria-live="polite">Mostrando {filtered.length} de {data.length} invitados · Nombre A–Z</p>{canSendInvitations && <p className="guest-list-summary">Los envíos masivos incluyen todos los elegibles, sin importar los filtros. Las invitaciones van a contactos sin envío previo; los recordatorios, solo a quienes recibieron correo, aún no responden y no tienen recordatorio registrado.</p>}{importProgress && <div className="import-progress" role="status"><div className="import-progress-text"><strong>Cargando invitados: {importProgress.done} de {importProgress.total}</strong><span>{Math.round(importProgress.done / importProgress.total * 100)}%{importProgress.failed ? ` · ${importProgress.failed} con error` : ''} · Mantén esta pestaña abierta y al frente (si cambias de pestaña o se bloquea la computadora, el envío se frena).</span></div><progress max={importProgress.total} value={importProgress.done} aria-label="Progreso de la carga" /></div>}{sendWarning && canSendInvitations && <p className="form-error guest-action-error" role="alert">{sendWarning} Revisa la Bitácora → Rebotes.</p>}{bulkNotice && <p className="guest-list-summary" role="status">{bulkNotice}</p>}{actionError && <p className="form-error guest-action-error">{actionError}</p>}<div className="panel guests-table-panel"><div className="table-tabs"><button className={filterStatus === 'all' ? 'selected' : ''} onClick={() => setFilterStatus('all')}>Todos <b>{data.length}</b></button><button className={filterStatus === 'Confirmado' ? 'selected' : ''} onClick={() => setFilterStatus('Confirmado')}>Confirmados <b>{count('Confirmado')}</b></button><button className={filterStatus === 'Pendiente' ? 'selected' : ''} onClick={() => setFilterStatus('Pendiente')}>Pendientes <b>{count('Pendiente')}</b></button><button className={filterStatus === 'Canceló' ? 'selected' : ''} onClick={() => setFilterStatus('Canceló')}>Cancelaron <b>{count('Canceló')}</b></button></div><div className="table-head"><span>INVITADO</span><span>EMPRESA</span><span>CORREO</span><span>RESPUESTA</span><span>ASISTENCIA</span><span>ACCIONES</span></div>{filtered.length === 0 && <p className="guest-list-empty">No hay invitados que coincidan con estos filtros.</p>}{filtered.map(g => <div className="table-line" key={g.id}><div className="guest-name"><div className="table-avatar">{g.name.split(' ').map(n => n[0]).slice(0, 2).join('')}</div><span><strong>{g.name}</strong><small>{g.email || g.phone}</small></span></div><span>{g.company}</span><InvitationState guest={g} disabled={bulkSending || deletingGuest !== null || editingGuest !== null} /><span className={`status status-${g.status === 'Confirmado' ? 'confirmed' : g.status === 'Canceló' ? 'cancelled' : 'pending'}`}><i></i>{g.status}</span><span className={g.checkedIn ? 'checked-label' : 'muted'}>{g.checkedIn ? <><CheckCircle2 size={14} /> Presente</> : 'No ha llegado'}</span><div className="guest-row-actions"><button className="row-action" disabled={passLoading === g.id} onClick={() => void openPass(g)}><Eye size={15} /> {passLoading === g.id ? 'Abriendo…' : 'Ver entrada'}</button><button className="row-action arrival-action" disabled={arrivalLoading !== null || deletingGuest !== null} onClick={() => void markArrival(g)}><CheckCircle2 size={15} /> {arrivalLoading === g.id ? 'Guardando…' : g.checkedIn ? 'Marcar como no ha llegado' : 'Registrar llegada'}</button><InvitationState guest={g} channel="whatsapp" disabled={bulkSending || deletingGuest !== null || editingGuest !== null} menuActions={canManageInvitations ? <><button className="row-action" disabled={confirmingGuest !== null || cancellingGuest !== null || deletingGuest !== null || g.status === 'Confirmado'} onClick={() => void confirmGuest(g)}><Check size={15} /> {confirmingGuest === g.id ? 'Guardando…' : g.status === 'Confirmado' ? 'Confirmación registrada' : 'Marcar como confirmado'}</button><button className="row-action" disabled={confirmingGuest !== null || cancellingGuest !== null || deletingGuest !== null || g.status === 'Canceló'} onClick={() => void cancelGuest(g)}><X size={15} /> {cancellingGuest === g.id ? 'Guardando…' : g.status === 'Canceló' ? 'Cancelación registrada' : 'Marcar como canceló'}</button>{g.status === 'Confirmado' && g.email && <button className="row-action" disabled={resendingTicket !== null || deletingGuest !== null || cancellingGuest !== null} onClick={() => void resendTicket(g)}><Send size={15} /> {resendingTicket === g.id ? 'Enviando…' : 'Reenviar entrada'}</button>}<button className="row-action" disabled={bulkSending || individualSends > 0 || deletingGuest !== null} onClick={() => setEditingGuest(g)}><Pencil size={15} /> Editar</button><button className="row-action" disabled={bulkSending || individualSends > 0 || deletingGuest !== null || cancellingGuest !== null || arrivalLoading !== null} onClick={() => void removeGuest(g)}><Trash2 size={15} /> {deletingGuest === g.id ? 'Eliminando…' : 'Eliminar'}</button></> : undefined} /></div></div>)}</div>{canManageInvitations && showNew && <GuestFormModal onClose={() => setShowNew(false)} />}{editingGuest && <GuestFormModal key={editingGuest.id} guest={editingGuest} onClose={() => setEditingGuest(null)} />}{passGuest && <GuestPassModal guest={passGuest} token={passToken} onClose={() => { setPassGuest(null); setPassToken('') }} />}</section>
+  return <section className="dashboard"><div className="page-heading"><div><p className="eyebrow orange">Gestión de invitados</p><h2>Lista de invitados <span>{data.length}</span></h2><p className="muted">Consulta respuestas y administra tus invitaciones.</p></div>{canSendInvitations && <div className="page-actions"><button className="button button-orange" disabled={bulkSending || batchRunning || deletingGuest !== null || editingGuest !== null || individualSends > 0 || isPending || isError || pendingEmails.length === 0} onClick={() => void sendAllInvitations()}><Send size={16} /> {bulkSending ? 'Preparando envío…' : `Enviar todas las invitaciones (${pendingEmails.length})`}</button><button className="button button-dark" disabled={bulkSending || batchRunning || deletingGuest !== null || editingGuest !== null || individualSends > 0 || isPending || isError || pendingReminders.length === 0} onClick={() => void sendAllReminders()}><Send size={16} /> {bulkSending ? 'Preparando envío…' : `Enviar todos los recordatorios (${pendingReminders.length})`}</button>{canManageInvitations && <button className="button button-dark" disabled={bulkSending || batchRunning || deletingGuest !== null || editingGuest !== null || individualSends > 0 || isPending || isError || pendingTickets.length === 0} onClick={() => void sendAllTickets()}><Send size={16} /> {bulkSending ? 'Preparando envío…' : `Enviar entradas pendientes (${pendingTickets.length})`}</button>}{canManageInvitations && <><input ref={fileInput} className="hidden-file" type="file" accept=".csv,text/csv" onChange={importCsv} /><button className="button button-dark" onClick={exportCsv}><Download size={16} /> Exportar CSV</button><button className="button button-dark" disabled={importProgress !== null} onClick={() => fileInput.current?.click()}><Upload size={16} /> {importProgress ? `Cargando ${importProgress.done} de ${importProgress.total}…` : 'Cargar masivamente'}</button><button className="button button-orange" onClick={() => setShowNew(true)}><Users size={16} /> Agregar invitado</button></>}</div>}</div><div className="filter-bar"><div className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre, correo, celular o empresa" /></div><label className="filter-button"><Filter size={16} /><select aria-label="Filtrar por respuesta" value={filterStatus} onChange={e => setFilterStatus(e.target.value as 'all' | GuestStatus)}><option value="all">Todos los estados</option><option value="Confirmado">Confirmados</option><option value="Pendiente">Pendientes de respuesta</option><option value="Canceló">Cancelaron</option></select></label><label className="filter-button"><Send size={16} /><select aria-label="Filtrar por envío de invitación" value={filterDelivery} onChange={e => setFilterDelivery(e.target.value)}><option value="all">Todas las invitaciones</option><option value="sent">Enviadas por algún canal</option><option value="pending">Sin enviar por ningún canal</option><option value="email">Correo enviado</option><option value="whatsapp">WhatsApp enviado</option></select></label></div><p className="guest-list-summary" aria-live="polite">Mostrando {filtered.length} de {data.length} invitados · Nombre A–Z</p>{canSendInvitations && <p className="guest-list-summary">Los envíos masivos incluyen todos los elegibles, sin importar los filtros. Las invitaciones van a contactos sin envío previo; los recordatorios, solo a quienes recibieron correo, aún no responden y no tienen recordatorio registrado.</p>}{importProgress && <div className="import-progress" role="status"><div className="import-progress-text"><strong>Cargando invitados: {importProgress.done} de {importProgress.total}</strong><span>{Math.round(importProgress.done / importProgress.total * 100)}%{importProgress.failed ? ` · ${importProgress.failed} con error` : ''} · Mantén esta pestaña abierta y al frente (si cambias de pestaña o se bloquea la computadora, el envío se frena).</span></div><progress max={importProgress.total} value={importProgress.done} aria-label="Progreso de la carga" /></div>}{sendWarning && canSendInvitations && <p className="form-error guest-action-error" role="alert">{sendWarning} Revisa la Bitácora → Rebotes.</p>}{bulkNotice && <p className="guest-list-summary" role="status">{bulkNotice}</p>}{actionError && <p className="form-error guest-action-error">{actionError}</p>}<div className="panel guests-table-panel"><div className="table-tabs"><button className={filterStatus === 'all' ? 'selected' : ''} onClick={() => setFilterStatus('all')}>Todos <b>{data.length}</b></button><button className={filterStatus === 'Confirmado' ? 'selected' : ''} onClick={() => setFilterStatus('Confirmado')}>Confirmados <b>{count('Confirmado')}</b></button><button className={filterStatus === 'Pendiente' ? 'selected' : ''} onClick={() => setFilterStatus('Pendiente')}>Pendientes <b>{count('Pendiente')}</b></button><button className={filterStatus === 'Canceló' ? 'selected' : ''} onClick={() => setFilterStatus('Canceló')}>Cancelaron <b>{count('Canceló')}</b></button></div><div className="table-head"><span>INVITADO</span><span>EMPRESA</span><span>CORREO</span><span>RESPUESTA</span><span>ASISTENCIA</span><span>ACCIONES</span></div>{filtered.length === 0 && <p className="guest-list-empty">No hay invitados que coincidan con estos filtros.</p>}{filtered.map(g => <div className="table-line" key={g.id}><div className="guest-name"><div className="table-avatar">{g.name.split(' ').map(n => n[0]).slice(0, 2).join('')}</div><span><strong>{g.name}</strong><small>{g.email || g.phone}</small></span></div><span>{g.company}</span><InvitationState guest={g} disabled={bulkSending || deletingGuest !== null || editingGuest !== null} /><span className={`status status-${g.status === 'Confirmado' ? 'confirmed' : g.status === 'Canceló' ? 'cancelled' : 'pending'}`}><i></i>{g.status}</span><span className={g.checkedIn ? 'checked-label' : 'muted'}>{g.checkedIn ? <><CheckCircle2 size={14} /> Presente</> : 'No ha llegado'}</span><div className="guest-row-actions"><button className="row-action" disabled={passLoading === g.id} onClick={() => void openPass(g)}><Eye size={15} /> {passLoading === g.id ? 'Abriendo…' : 'Ver entrada'}</button><button className="row-action arrival-action" disabled={arrivalLoading !== null || deletingGuest !== null} onClick={() => void markArrival(g)}><CheckCircle2 size={15} /> {arrivalLoading === g.id ? 'Guardando…' : g.checkedIn ? 'Marcar como no ha llegado' : 'Registrar llegada'}</button><InvitationState guest={g} channel="whatsapp" disabled={bulkSending || deletingGuest !== null || editingGuest !== null} menuActions={canManageInvitations ? <><button className="row-action" disabled={confirmingGuest !== null || cancellingGuest !== null || deletingGuest !== null || g.status === 'Confirmado'} onClick={() => void confirmGuest(g)}><Check size={15} /> {confirmingGuest === g.id ? 'Guardando…' : g.status === 'Confirmado' ? 'Confirmación registrada' : 'Marcar como confirmado'}</button><button className="row-action" disabled={confirmingGuest !== null || cancellingGuest !== null || deletingGuest !== null || g.status === 'Canceló'} onClick={() => void cancelGuest(g)}><X size={15} /> {cancellingGuest === g.id ? 'Guardando…' : g.status === 'Canceló' ? 'Cancelación registrada' : 'Marcar como canceló'}</button>{g.status === 'Confirmado' && g.email && <button className="row-action" disabled={resendingTicket !== null || deletingGuest !== null || cancellingGuest !== null} onClick={() => void resendTicket(g)}><Send size={15} /> {resendingTicket === g.id ? 'Enviando…' : 'Reenviar entrada'}</button>}<button className="row-action" disabled={bulkSending || individualSends > 0 || deletingGuest !== null} onClick={() => setEditingGuest(g)}><Pencil size={15} /> Editar</button><button className="row-action" disabled={bulkSending || individualSends > 0 || deletingGuest !== null || cancellingGuest !== null || arrivalLoading !== null} onClick={() => void removeGuest(g)}><Trash2 size={15} /> {deletingGuest === g.id ? 'Eliminando…' : 'Eliminar'}</button></> : undefined} /></div></div>)}</div>{canManageInvitations && showNew && <GuestFormModal onClose={() => setShowNew(false)} />}{editingGuest && <GuestFormModal key={editingGuest.id} guest={editingGuest} onClose={() => setEditingGuest(null)} />}{passGuest && <GuestPassModal guest={passGuest} token={passToken} onClose={() => { setPassGuest(null); setPassToken('') }} />}</section>
 }
 
 function CheckInPage() {

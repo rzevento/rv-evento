@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { impersonationFetch, organizerAction } from './impersonation-transport'
 import type { OrganizerProfile } from './organizer-permissions'
 import type { EmailBounce, TicketLogEntry } from './email-log'
+import { parseEmailBatchStatus, type EmailBatchKind, type EmailBatchStatus } from './email-queue'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
@@ -444,6 +445,35 @@ export async function sendTicket(token: string) {
     if (typeof details?.error === 'string') return { data, error: new Error(details.error), demo: false }
   }
   return { data: data as { ok?: boolean; already_sent?: boolean; skipped?: string } | null, error, demo: false }
+}
+
+// Envíos masivos: el servidor los manda (cola public.email_queue); el panel sólo los pone en fila y lee el avance.
+export async function enqueueBulkEmail(kind: EmailBatchKind) {
+  return organizerAction(async () => {
+    if (!supabase) return { data: { status: 'empty' as const }, error: null, demo: true }
+    const { data: activeEvent, error: eventError } = await supabase.from('events').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
+    if (eventError || !activeEvent) return { data: null, error: eventError || new Error('No active event'), demo: false }
+    const { data, error } = await supabase.rpc('enqueue_bulk_email', { target_event_id: activeEvent.id, p_kind: kind })
+    return { data: data as { status: 'ok' | 'busy' | 'empty'; total?: number; queued?: number; rejected?: number } | null, error, demo: false }
+  })
+}
+
+export async function stopEmailBatch(batchId: string) {
+  return organizerAction(async () => {
+    if (!supabase) return { data: null, error: null, demo: true }
+    const { data, error } = await supabase.rpc('stop_email_batch', { target_batch_id: batchId })
+    return { data: data as { cancelled?: number } | null, error, demo: false }
+  })
+}
+
+export async function getEmailBatchStatus(): Promise<EmailBatchStatus | null> {
+  if (!supabase) return null
+  const { data: activeEvent, error: eventError } = await supabase.from('events').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
+  if (eventError) throw eventError
+  if (!activeEvent) return null
+  const { data, error } = await supabase.rpc('email_batch_status', { target_event_id: activeEvent.id })
+  if (error) throw error
+  return parseEmailBatchStatus(data)
 }
 
 export async function markWhatsAppInvitationSent(guestId: string) {

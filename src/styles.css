@@ -266,3 +266,13 @@ body { background: var(--bg); color: var(--cream); }
   .welcome-row h2 { overflow-wrap: anywhere; line-height: 1.15; }
   .scanner-card { padding: 22px 18px; }
 }
+/* Avance del envío masivo que hace el servidor (BulkEmailProgress), arriba de cada página del panel. */
+.bulk-email-progress { max-width: 1350px; margin: 24px auto 0; padding: 14px 18px; display: flex; gap: 16px; align-items: center; justify-content: space-between; border: 1px solid #e5dfd6; border-left: 4px solid var(--orange); background: #faf8f5; font-size: 13px; line-height: 1.45; }
+.bulk-email-progress { margin-left: 5vw; margin-right: 5vw; }
+@media (min-width: 1500px) { .bulk-email-progress { margin-left: auto; margin-right: auto; } }
+.bulk-email-progress p { margin: 0; }
+.bulk-email-progress .bulk-email-detail { margin-top: 6px; color: #81786e; font-size: 12px; }
+.bulk-email-progress.warning { border-left-color: #aa5c54; }
+.bulk-email-progress.done { border-left-color: #5d8a5a; }
+.bulk-email-progress button { flex-shrink: 0; }
+@media (max-width: 680px) { .bulk-email-progress { margin: 16px 20px 0; flex-direction: column; align-items: flex-start; } }
