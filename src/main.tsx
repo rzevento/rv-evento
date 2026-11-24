@@ -6,7 +6,7 @@ import { AlertCircle, ArrowRight, CalendarDays, Camera, Check, CheckCircle2, Che
 import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
 import { QrScanner } from './components/QrScanner'
-import { addEventMember, beginRsvp, cancelRsvp, checkInGuest, undoCheckInGuest, createGuest, updateGuest, deleteGuest, markGuestCancelled, markGuestConfirmed, findGuestByQr, getCurrentOrganizerProfile, getEventMembers, updateEventMemberRole, getInvitationToken, getInvitationDetails, markWhatsAppInvitationSent, releaseGuestTicket, sendInvitation, sendTicket, submitRsvp, supabase, getEmailBounces, enqueueBulkEmail, stopEmailBatch, getEmailBatchStatus } from './lib/supabase'
+import { addEventMember, beginRsvp, cancelRsvp, checkInGuest, undoCheckInGuest, createGuest, updateGuest, deleteGuest, markGuestCancelled, markGuestConfirmed, findGuestByQr, getCurrentOrganizerProfile, getEventMembers, updateEventMemberRole, getInvitationToken, markWhatsAppInvitationSent, releaseGuestTicket, sendInvitation, sendTicket, submitRsvp, supabase, getEmailBounces, enqueueBulkEmail, stopEmailBatch, getEmailBatchStatus } from './lib/supabase'
 import { BULK_EMAIL_PAUSE_MS, bulkDurationLabel, canSendPendingEmail, canSendPendingTicket, canSendReminderEmail, isValidEmail, whatsappInvitationUrl, whatsappPhone } from './lib/invitations'
 import { OrganizerRoleContext, useCanManageInvitations, useCanSendInvitations } from './lib/organizer-permissions'
 import { blockWarning, recentAccountBlock } from './lib/email-log'
@@ -195,14 +195,12 @@ function PublicShell() {
 
 const registrationMessages = {
   notFound: 'No encontramos esta dirección de correo electrónico en nuestra lista de invitados. Le recomendamos verificar que esté escrita correctamente. Si el problema persiste, por favor comuníquese con el socio de la firma que lo atiende, quien con gusto lo apoyará.',
-  contactOfAnother: 'Ese correo o teléfono corresponde a la invitación de otra persona, así que no podemos emitir su entrada con él. Guardamos sus datos para que el equipo organizador los revise. Si usted también fue invitado, use su propio correo o teléfono.',
-  nameReview: 'Esta invitación se envió a un correo que no coincide con su nombre, así que no podemos emitir su entrada en este momento. Guardamos sus datos y el equipo organizador revisará su registro y se pondrá en contacto con usted. Si usted fue invitado con otro correo o teléfono, regístrese con ese.',
   phoneInUse: 'Este teléfono ya está registrado con otro invitado. Verifique el número o contacte al organizador para recibir ayuda.',
   emailInUse: 'Este correo ya está registrado con otro invitado. Verifique el correo o contacte al organizador para recibir ayuda.',
 }
 
-// El registro es siempre general: cada invitado escribe su correo (o teléfono) y su nombre, y con eso se
-// busca su invitación. Así una invitación reenviada a otro invitado no muestra los datos ni el registro de
+// El registro es siempre general y la única llave es el correo: si está en la lista, la persona se registra
+// con el nombre, teléfono y empresa que escriba y la entrada sale a ese nombre. Así una invitación reenviada a otro invitado no muestra los datos ni el registro de
 // quien la recibió primero.
 // Teléfono del registro: sólo 10 dígitos. Si se pega con +52 o 52 al inicio, se quita.
 function tenDigitPhone(value: string) {
@@ -237,8 +235,8 @@ function RegistrationPage() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (submitting) return
-    // Todos los campos son obligatorios, esté o no el correo en la lista. El correo es la llave con
-    // que se busca la invitación; el nombre además comprueba que la invitación es de quien se registra.
+    // Todos los campos son obligatorios, esté o no el correo en la lista. El correo es la única llave con
+    // que se busca la invitación; el nombre escrito no se compara con nada.
     if (!form.name.trim()) {
       setError('Escriba su nombre completo.')
       return
@@ -264,30 +262,11 @@ function RegistrationPage() {
     const status = lookup.data?.status
     if (lookup.error || !status) { setSubmitting(false); setError('No pudimos verificar su registro. Intente de nuevo.'); return }
     if (status === 'not_found') { setSubmitting(false); setError(registrationMessages.notFound); return }
-    if (status === 'name_mismatch' || status === 'name_required') { setSubmitting(false); setError(registrationMessages.contactOfAnother); return }
-    if (status === 'name_review') { setSubmitting(false); setError(registrationMessages.nameReview); return }
+    // Aunque el correo ya esté confirmado se vuelve a guardar: la entrada sale con los datos recién escritos.
     const currentToken = lookup.data?.token || ''
-    if (status === 'already_registered') {
-      const details = await getInvitationDetails(currentToken)
-      if (details.error || !details.data) {
-        setSubmitting(false)
-        setError('No pudimos cargar su invitación. Intente de nuevo.')
-        return
-      }
-      setResolvedToken(currentToken)
-      setForm({ name: details.data.name || '', email: details.data.email || '', phone: details.data.phone || '', company: details.data.company || '' })
-      setAlreadyRegistered(true)
-      setSubmitting(false)
-      setSent(true)
-      return
-    }
     const result = await submitRsvp({ token: currentToken, ...form })
     setSubmitting(false)
     const outcome = (result.data || null) as { status?: string; field?: string } | null
-    if (outcome?.status === 'name_mismatch' || outcome?.status === 'name_review') {
-      setError(outcome.status === 'name_review' ? registrationMessages.nameReview : registrationMessages.contactOfAnother)
-      return
-    }
     if (outcome?.status === 'email_mismatch') {
       setError(registrationMessages.notFound)
       return
